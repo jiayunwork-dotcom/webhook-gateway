@@ -4,7 +4,6 @@
   import { auth, uiStore } from './lib/store';
 
   const { sidebarOpen } = uiStore;
-  const { token, tenant } = auth;
   import LoginPage from './pages/Login.svelte';
   import RegisterPage from './pages/Register.svelte';
   import Dashboard from './pages/Dashboard.svelte';
@@ -25,8 +24,8 @@
     currentPath = window.location.pathname;
   }
 
-  $: requireAuth = $token && !$tenant;
-  $: user = $tenant;
+  $: requireAuth = $auth.token && !$auth.tenant;
+  $: user = $auth.tenant;
 
   const navItems = [
     { path: '/', label: '概览', icon: '📊' },
@@ -52,7 +51,7 @@
 </script>
 
 <Router url="{typeof window !== 'undefined' ? window.location.pathname : '/'}">
-  {#if !$token && !['/login', '/register'].includes(currentPath)}
+  {#if !$auth.token && !['/login', '/register'].includes(currentPath)}
     {#if typeof window !== 'undefined'}
       {navigate('/login', { replace: true })}
     {/if}

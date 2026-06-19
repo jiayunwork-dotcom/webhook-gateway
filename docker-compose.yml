@@ -42,7 +42,7 @@ services:
       dockerfile: Dockerfile
     container_name: webhook-gateway-backend
     environment:
-      NODE_ENV: production
+      NODE_ENV: development
       DB_HOST: postgres
       DB_PORT: 5432
       DB_USER: ${DB_USER:-webhook}

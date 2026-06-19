@@ -85,7 +85,20 @@ function createAuthStore() {
     fetchMe();
   }
 
+  // 创建一个聚合 store，让组件可以用 $auth 订阅
+  const { subscribe } = derived(
+    [token, tenant, loading, error, isAuthenticated],
+    ([$token, $tenant, $loading, $error, $isAuthenticated]) => ({
+      token: $token,
+      tenant: $tenant,
+      loading: $loading,
+      error: $error,
+      isAuthenticated: $isAuthenticated,
+    })
+  );
+
   return {
+    subscribe,
     token,
     tenant,
     loading,
