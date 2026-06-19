@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { DataSource } from 'typeorm';
 import helmet from 'helmet';
 import * as compression from 'compression';
 import { AppModule } from './app.module';
@@ -48,6 +49,11 @@ async function bootstrap() {
 
   const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('api/docs', app, document);
+
+  logger.log('Synchronizing database schema...');
+  const dataSource = app.get(DataSource);
+  await dataSource.synchronize();
+  logger.log('Database schema synchronized successfully');
 
   const port = config.appPort;
   await app.listen(port, '0.0.0.0');

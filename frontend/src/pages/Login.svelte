@@ -11,6 +11,7 @@
     e.preventDefault();
     if (!email || !password) {
       error = '请填写邮箱和密码';
+      uiStore.error(error);
       return;
     }
     loading = true;
@@ -20,7 +21,8 @@
       uiStore.success('登录成功');
       navigate('/', { replace: true });
     } catch (err: any) {
-      error = err.message || '登录失败';
+      error = err.message || '登录失败，请检查邮箱和密码';
+      uiStore.error(error);
     } finally {
       loading = false;
     }

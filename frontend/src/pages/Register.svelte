@@ -14,18 +14,22 @@
     error = '';
     if (!name || name.length < 2) {
       error = '租户名称至少 2 个字符';
+      uiStore.error(error);
       return;
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       error = '请输入有效的邮箱地址';
+      uiStore.error(error);
       return;
     }
     if (password.length < 8) {
       error = '密码至少 8 位字符';
+      uiStore.error(error);
       return;
     }
     if (password !== confirmPassword) {
       error = '两次输入的密码不一致';
+      uiStore.error(error);
       return;
     }
     loading = true;
@@ -34,7 +38,8 @@
       uiStore.success('注册成功');
       navigate('/', { replace: true });
     } catch (err: any) {
-      error = err.message || '注册失败';
+      error = err.message || '注册失败，请稍后重试';
+      uiStore.error(error);
     } finally {
       loading = false;
     }

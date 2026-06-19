@@ -3,7 +3,7 @@
   import { Router, Route, navigate, Link } from 'svelte-routing';
   import { auth, uiStore } from './lib/store';
 
-  const { sidebarOpen } = uiStore;
+  const sidebarOpen = uiStore.sidebarOpen;
   import LoginPage from './pages/Login.svelte';
   import RegisterPage from './pages/Register.svelte';
   import Dashboard from './pages/Dashboard.svelte';
@@ -38,6 +38,10 @@
     { path: '/settings', label: '系统设置', icon: '🛠️' },
   ];
 
+  function toggleSidebar() {
+    sidebarOpen.update(v => !v);
+  }
+
   function onLogout() {
     auth.logout();
     navigate('/login');
@@ -71,7 +75,7 @@
               <div class="logo-sub">事件分发平台</div>
             </div>
           </div>
-          <button class="sidebar-toggle" on:click="{() => sidebarOpen.update(v => !v)}" title="收起/展开">
+          <button class="sidebar-toggle" on:click="{toggleSidebar}" title="收起/展开">
             {$sidebarOpen ? '◀' : '▶'}
           </button>
         </div>
@@ -107,7 +111,7 @@
       <main class="main-content">
         <header class="topbar">
           <div class="topbar-left">
-            <button class="icon-btn" on:click="{() => uiStore.sidebarOpen.update(v => !v)}" title="菜单">
+            <button class="icon-btn" on:click="{toggleSidebar}" title="菜单">
               ☰
             </button>
             <div class="breadcrumb">
