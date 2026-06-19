@@ -19,9 +19,17 @@
 
   let testEventType = '';
   let testPayload = '{\n  "test": true,\n  "message": "手动测试事件"\n}';
-  let testPayloadError = '';
   let testSending = false;
   let testResult: any = null;
+
+  $: testPayloadError = (() => {
+    try {
+      JSON.parse(testPayload);
+      return '';
+    } catch (e: any) {
+      return 'JSON 格式错误: ' + e.message;
+    }
+  })();
 
   async function loadData() {
     try {
@@ -51,19 +59,8 @@
 
   onMount(loadData);
 
-  function validateTestPayload(): boolean {
-    try {
-      JSON.parse(testPayload);
-      testPayloadError = '';
-      return true;
-    } catch (e: any) {
-      testPayloadError = 'JSON 格式错误: ' + e.message;
-      return false;
-    }
-  }
-
   async function sendTestDelivery() {
-    if (!validateTestPayload()) return;
+    if (testPayloadError) return;
     if (!testEventType) {
       uiStore.error('请选择事件类型');
       return;
@@ -234,7 +231,6 @@
         <textarea
           class="form-textarea code-textarea"
           bind:value="{testPayload}"
-          on:input="{validateTestPayload}"
           style="min-height: 140px; font-family: monospace; font-size: 0.875rem;"
           placeholder="{`{
   \"key\": \"value\"

@@ -72,12 +72,13 @@
   $: user = $auth.tenant;
 
   $: {
-    if (!mounted) continue;
-    if (!hasToken && !isAuthPage) {
-      setTimeout(() => navigate('/login', { replace: true }), 0);
-    }
-    if (hasToken && isAuthPage) {
-      setTimeout(() => navigate('/', { replace: true }), 0);
+    if (mounted) {
+      if (!hasToken && !isAuthPage) {
+        setTimeout(() => navigate('/login', { replace: true }), 0);
+      }
+      if (hasToken && isAuthPage) {
+        setTimeout(() => navigate('/', { replace: true }), 0);
+      }
     }
   }
 
