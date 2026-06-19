@@ -17,13 +17,13 @@ export class Tenant {
   @Column({ length: 255 })
   passwordHash: string;
 
-  @Column({ length: 64, unique: true })
+  @Column({ length: 255, unique: true })
   apiPublicKey: string;
 
-  @Column({ length: 64 })
+  @Column({ length: 255 })
   apiPrivateKey: string;
 
-  @Column({ length: 64, nullable: true })
+  @Column({ length: 255, nullable: true })
   oldApiPrivateKey: string | null;
 
   @Column({ type: 'timestamptz', nullable: true })

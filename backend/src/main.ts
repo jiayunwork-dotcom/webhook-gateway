@@ -55,6 +55,19 @@ async function bootstrap() {
   await dataSource.synchronize();
   logger.log('Database schema synchronized successfully');
 
+  logger.log('Running column migrations for tenant API keys...');
+  try {
+    await dataSource.query(`
+      ALTER TABLE IF EXISTS tenants
+      ALTER COLUMN "apiPublicKey" TYPE varchar(255),
+      ALTER COLUMN "apiPrivateKey" TYPE varchar(255),
+      ALTER COLUMN "oldApiPrivateKey" TYPE varchar(255);
+    `);
+    logger.log('Tenant API key columns migrated to varchar(255)');
+  } catch (migrationErr: any) {
+    logger.warn(`Column migration skipped: ${migrationErr.message}`);
+  }
+
   const port = config.appPort;
   await app.listen(port, '0.0.0.0');
 
