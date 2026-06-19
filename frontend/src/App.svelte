@@ -1,9 +1,9 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import './app.css';
   import { Router, Route, navigate, Link } from 'svelte-routing';
   import { auth, uiStore } from './lib/store';
 
-  const sidebarOpen = uiStore.sidebarOpen;
   import LoginPage from './pages/Login.svelte';
   import RegisterPage from './pages/Register.svelte';
   import Dashboard from './pages/Dashboard.svelte';
@@ -19,9 +19,29 @@
   import Toast from './components/Toast.svelte';
 
   let currentPath = '/';
+  let sidebarCollapsed = false;
 
-  $: if (typeof window !== 'undefined') {
+  onMount(() => {
     currentPath = window.location.pathname;
+    const unsub = uiStore.sidebarOpen.subscribe(v => {
+      sidebarCollapsed = !v;
+    });
+    window.addEventListener('popstate', updatePath);
+    return () => {
+      unsub();
+      window.removeEventListener('popstate', updatePath);
+    };
+  });
+
+  function updatePath() {
+    currentPath = window.location.pathname;
+  }
+
+  function toggleSidebar() {
+    uiStore.sidebarOpen.update(v => {
+      sidebarCollapsed = !v;
+      return !v;
+    });
   }
 
   $: requireAuth = $auth.token && !$auth.tenant;
@@ -38,10 +58,6 @@
     { path: '/settings', label: '系统设置', icon: '🛠️' },
   ];
 
-  function toggleSidebar() {
-    sidebarOpen.update(v => !v);
-  }
-
   function onLogout() {
     auth.logout();
     navigate('/login');
@@ -52,6 +68,11 @@
     if (path === '/') return currentPath === '/';
     return currentPath.startsWith(path);
   };
+
+  function goTo(path: string) {
+    navigate(path, { replace: false });
+    setTimeout(updatePath, 0);
+  }
 </script>
 
 <Router url="{typeof window !== 'undefined' ? window.location.pathname : '/'}">
@@ -65,7 +86,7 @@
     <Route path="/login" component="{LoginPage}" />
     <Route path="/register" component="{RegisterPage}" />
   {:else}
-    <div class="app-shell" class:sidebar-collapsed="{!$sidebarOpen}">
+    <div class="app-shell" class:sidebar-collapsed="{sidebarCollapsed}">
       <aside class="sidebar">
         <div class="sidebar-header">
           <div class="logo">
@@ -76,7 +97,7 @@
             </div>
           </div>
           <button class="sidebar-toggle" on:click="{toggleSidebar}" title="收起/展开">
-            {$sidebarOpen ? '◀' : '▶'}
+            {sidebarCollapsed ? '▶' : '◀'}
           </button>
         </div>
 
@@ -86,7 +107,7 @@
               href="{item.path}"
               class="nav-link"
               class:active="{isActive(item.path)}"
-              on:click|preventDefault="{() => navigate(item.path, { replace: false })}"
+              on:click|preventDefault="{() => goTo(item.path)}"
             >
               <span class="nav-icon">{item.icon}</span>
               <span class="nav-label">{item.label}</span>

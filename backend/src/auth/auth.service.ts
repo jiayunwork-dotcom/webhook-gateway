@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
@@ -14,6 +14,8 @@ export interface JwtPayload {
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     @InjectRepository(Tenant)
     private readonly tenantRepository: Repository<Tenant>,
@@ -29,31 +31,49 @@ export class AuthService {
   }
 
   async register(dto: { name: string; email: string; password: string }) {
-    const existing = await this.tenantRepository.findOne({
-      where: [{ email: dto.email }, { name: dto.name }],
-    });
-    if (existing) {
-      throw new ConflictException('Tenant with this email or name already exists');
+    this.logger.log(`Register attempt: name=${dto.name}, email=${dto.email}`);
+
+    try {
+      const existing = await this.tenantRepository.findOne({
+        where: [{ email: dto.email }, { name: dto.name }],
+      });
+      if (existing) {
+        this.logger.warn(`Register failed: duplicate email or name for ${dto.email}`);
+        throw new ConflictException('Tenant with this email or name already exists');
+      }
+      this.logger.log('No existing tenant found, creating new one...');
+
+      const keys = this.generateApiKeys();
+      this.logger.log(`Generated API keys: public=${keys.publicKey.substring(0, 10)}...`);
+
+      const passwordHash = await bcrypt.hash(dto.password, 12);
+      this.logger.log('Password hashed successfully');
+
+      const tenant = this.tenantRepository.create({
+        name: dto.name,
+        email: dto.email,
+        passwordHash,
+        apiPublicKey: keys.publicKey,
+        apiPrivateKey: keys.privateKey,
+        maxApps: this.configService.maxAppsPerTenant,
+      });
+      this.logger.log('Tenant entity created, saving to DB...');
+
+      const saved = await this.tenantRepository.save(tenant);
+      this.logger.log(`Tenant saved successfully: id=${saved.id}, name=${saved.name}`);
+
+      const accessToken = this.signToken(saved);
+      this.logger.log('JWT signed successfully');
+
+      return {
+        tenant: this.sanitizeTenant(saved),
+        apiKeys: keys,
+        accessToken,
+      };
+    } catch (err: any) {
+      this.logger.error(`Register failed for ${dto.email}: ${err.message}`, err.stack);
+      throw err;
     }
-
-    const keys = this.generateApiKeys();
-    const passwordHash = await bcrypt.hash(dto.password, 12);
-
-    const tenant = this.tenantRepository.create({
-      name: dto.name,
-      email: dto.email,
-      passwordHash,
-      apiPublicKey: keys.publicKey,
-      apiPrivateKey: keys.privateKey,
-      maxApps: this.configService.maxAppsPerTenant,
-    });
-
-    const saved = await this.tenantRepository.save(tenant);
-    return {
-      tenant: this.sanitizeTenant(saved),
-      apiKeys: keys,
-      accessToken: this.signToken(saved),
-    };
   }
 
   async login(dto: { email: string; password: string }) {
