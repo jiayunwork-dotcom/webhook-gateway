@@ -328,6 +328,7 @@ export class DeliveryEngineService implements OnModuleInit {
     endpoint: Endpoint,
     event: WebhookEvent,
     attemptNumber: number,
+    isTest: boolean = false,
   ): Promise<{
     success: boolean;
     responseStatus?: number;
@@ -342,13 +343,17 @@ export class DeliveryEngineService implements OnModuleInit {
     const eventIdHeader = this.signatureService.generateWebhookId();
     const customHeaders = endpoint.customHeaders || {};
 
-    const headers = this.signatureService.buildSignatureHeaders(sigResult, tenant.apiPublicKey, {
+    const headers: Record<string, string> = this.signatureService.buildSignatureHeaders(sigResult, tenant.apiPublicKey, {
       'X-Webhook-Event-Id': eventIdHeader,
       'X-Webhook-Event-Type': event.eventType,
       'X-Webhook-Attempt': String(attemptNumber + 1),
       'X-Webhook-Delivery-Id': `${event.id}-${endpoint.id}-${attemptNumber + 1}`,
       ...customHeaders,
     });
+
+    if (isTest) {
+      headers['X-Webhook-Test'] = 'true';
+    }
 
     const startTime = Date.now();
     const timeout = this.configService.deliveryTimeoutMs;
@@ -448,8 +453,8 @@ export class DeliveryEngineService implements OnModuleInit {
     app: App,
     endpoint: Endpoint,
     event: WebhookEvent,
-  ): Promise<{ logId: string; success: boolean; responseStatus?: number; durationMs: number; errorMessage?: string }> {
-    const result = await this.performHttpDelivery(tenant, endpoint, event, 0);
+  ): Promise<{ logId: string; success: boolean; responseStatus?: number; durationMs: number; errorMessage?: string; responseBody?: string }> {
+    const result = await this.performHttpDelivery(tenant, endpoint, event, 0, true);
 
     const logEntry = this.deliveryLogRepository.create({
       tenantId: tenant.id,
@@ -476,6 +481,39 @@ export class DeliveryEngineService implements OnModuleInit {
       responseStatus: result.responseStatus,
       durationMs: result.durationMs,
       errorMessage: result.errorMessage,
+      responseBody: result.responseBody,
+    };
+  }
+
+  async manualTestDelivery(
+    tenant: Tenant,
+    endpoint: Endpoint,
+    eventType: string,
+    payload: Record<string, any>,
+  ): Promise<{
+    success: boolean;
+    responseStatus?: number;
+    durationMs: number;
+    errorMessage?: string;
+    responseBody?: string;
+    requestHeaders?: Record<string, string>;
+  }> {
+    const app = { id: endpoint.appId } as App;
+    const event = {
+      id: 'test-' + Date.now(),
+      eventType,
+      payload,
+    } as WebhookEvent;
+
+    const result = await this.performHttpDelivery(tenant, endpoint, event, 0, true);
+
+    return {
+      success: result.success,
+      responseStatus: result.responseStatus,
+      durationMs: result.durationMs,
+      errorMessage: result.errorMessage,
+      responseBody: result.responseBody,
+      requestHeaders: result.requestHeaders,
     };
   }
 

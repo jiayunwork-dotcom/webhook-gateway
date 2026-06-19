@@ -17,6 +17,12 @@
   let editError = '';
   let editForm: any = {};
 
+  let testEventType = '';
+  let testPayload = '{\n  "test": true,\n  "message": "手动测试事件"\n}';
+  let testPayloadError = '';
+  let testSending = false;
+  let testResult: any = null;
+
   async function loadData() {
     try {
       const [ep, lg, mt] = await Promise.all([
@@ -36,11 +42,62 @@
         customHeaders: ep.customHeaders ? JSON.stringify(ep.customHeaders, null, 2) : '',
         isActive: ep.isActive,
       };
+      if (ep.subscribedEvents?.length > 0 && !testEventType) {
+        testEventType = ep.subscribedEvents[0];
+      }
     } catch (e: any) { uiStore.error(e.message); }
     finally { loading = false; }
   }
 
   onMount(loadData);
+
+  function validateTestPayload(): boolean {
+    try {
+      JSON.parse(testPayload);
+      testPayloadError = '';
+      return true;
+    } catch (e: any) {
+      testPayloadError = 'JSON 格式错误: ' + e.message;
+      return false;
+    }
+  }
+
+  async function sendTestDelivery() {
+    if (!validateTestPayload()) return;
+    if (!testEventType) {
+      uiStore.error('请选择事件类型');
+      return;
+    }
+
+    testSending = true;
+    testResult = null;
+
+    try {
+      const payload = JSON.parse(testPayload);
+      const result = await eventsApi.manualTestDelivery(id, {
+        eventType: testEventType,
+        payload,
+      });
+      testResult = {
+        ...result,
+        timestamp: new Date().toISOString(),
+      };
+      if (result.success) {
+        uiStore.success('投递成功');
+      } else {
+        uiStore.error('投递失败');
+      }
+    } catch (e: any) {
+      testResult = {
+        success: false,
+        errorMessage: e.message,
+        timestamp: new Date().toISOString(),
+      };
+      uiStore.error(e.message);
+    } finally {
+      testSending = false;
+    }
+  }
 
   async function testDelivery() {
     showTestResult = null;
@@ -90,6 +147,15 @@
     if (s.length <= n) return s;
     return s.slice(0, n) + '...';
   }
+
+  function formatResponseBody(body: string) {
+    if (!body) return '-';
+    try {
+      return JSON.stringify(JSON.parse(body), null, 2);
+    } catch {
+      return body;
+    }
+  }
 </script>
 
 {#if loading}
@@ -107,7 +173,7 @@
       <p class="text-muted mb-0 ml-10">创建于 {formatRelative(endpoint.createdAt)}</p>
     </div>
     <div class="page-actions">
-      <button class="btn btn-secondary" on:click="{testDelivery}">📤 测试投递</button>
+      <button class="btn btn-secondary" on:click="{testDelivery}">📤 快速测试</button>
       <button class="btn btn-primary" on:click="{() => showEditModal = true}">编辑配置</button>
     </div>
   </div>
@@ -132,6 +198,86 @@
       </div>
     </div>
   {/if}
+
+  <div class="card mb-6">
+    <div class="card-header">
+      <h4 class="mb-0">投递测试</h4>
+    </div>
+    <div class="card-body">
+      <div class="grid-2 mb-4">
+        <div class="form-group">
+          <label class="form-label">事件类型</label>
+          {#if endpoint.subscribedEvents?.length > 0}
+            <select class="form-input" bind:value="{testEventType}">
+              {#each endpoint.subscribedEvents as ev}
+                <option value="{ev}">{ev}</option>
+              {/each}
+            </select>
+          {:else}
+            <select class="form-input" disabled>
+              <option value="">端点未订阅任何事件类型</option>
+            </select>
+          {/if}
+        </div>
+        <div class="form-group" style="display: flex; align-items: flex-end;">
+          <button
+            class="btn btn-primary w-full"
+            disabled="{testSending || !endpoint.subscribedEvents?.length}"
+            on:click="{sendTestDelivery}"
+          >
+            {testSending ? '发送中...' : '🚀 发送测试'}
+          </button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">事件体 (JSON)</label>
+        <textarea
+          class="form-textarea code-textarea"
+          bind:value="{testPayload}"
+          on:input="{validateTestPayload}"
+          style="min-height: 140px; font-family: monospace; font-size: 0.875rem;"
+          placeholder="{`{
+  \"key\": \"value\"
+}`}"
+        ></textarea>
+        {#if testPayloadError}
+          <div class="text-danger text-sm mt-1">{testPayloadError}</div>
+        {/if}
+      </div>
+
+      {#if testResult}
+        <div class="mt-4" style="padding: 1rem; border-radius: 6px; background: {testResult.success ? '#f0fdf4' : '#fef2f2'}; border: 1px solid {testResult.success ? '#bbf7d0' : '#fecaca'};">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+              <span class="font-medium" style="color: {testResult.success ? '#166534' : '#991b1b'};">
+                {testResult.success ? '✅ 投递成功' : '❌ 投递失败'}
+              </span>
+              {#if testResult.responseStatus}
+                <span class="badge" style="background: {testResult.success ? '#22c55e' : '#ef4444'}; color: white;">
+                  HTTP {testResult.responseStatus}
+                </span>
+              {/if}
+            </div>
+            <span class="text-sm text-muted">
+              耗时: <strong>{testResult.durationMs || '-'}</strong> ms
+            </span>
+          </div>
+          {#if testResult.errorMessage}
+            <div style="padding: 0.75rem; background: white; border-radius: 4px; margin-bottom: 0.75rem;">
+              <div class="text-sm text-muted mb-1">错误信息</div>
+              <div class="text-danger">{testResult.errorMessage}</div>
+            </div>
+          {/if}
+          {#if testResult.responseBody}
+            <div>
+              <div class="text-sm text-muted mb-1">响应体</div>
+              <div class="code-block" style="max-height: 240px; background: white;">{formatResponseBody(testResult.responseBody)}</div>
+            </div>
+          {/if}
+        </div>
+      {/if}
+    </div>
+  </div>
 
   <div class="grid-2 mb-6">
     <div class="card">

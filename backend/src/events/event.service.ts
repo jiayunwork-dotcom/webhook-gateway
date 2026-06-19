@@ -177,6 +177,48 @@ export class EventService {
     };
   }
 
+  async manualTestDelivery(
+    tenantId: string,
+    endpointId: string,
+    eventType: string,
+    payload: Record<string, any>,
+  ): Promise<{
+    success: boolean;
+    responseStatus?: number;
+    durationMs: number;
+    errorMessage?: string;
+    responseBody?: string;
+  }> {
+    const endpoint = await this.endpointService.findOne(tenantId, endpointId);
+    if (!endpoint) {
+      throw new NotFoundException('Endpoint not found');
+    }
+
+    if (!endpoint.subscribedEvents || endpoint.subscribedEvents.length === 0) {
+      throw new BadRequestException('Endpoint has no subscribed event types');
+    }
+
+    const isSubscribed = endpoint.subscribedEvents.some(sub =>
+      this.endpointService.matchesEvent(sub, eventType),
+    );
+    if (!isSubscribed) {
+      throw new BadRequestException(`Event type "${eventType}" is not subscribed by this endpoint`);
+    }
+
+    const tenant = await this.tenantRepository.findOne({ where: { id: tenantId } });
+    if (!tenant) throw new NotFoundException('Tenant not found');
+
+    const result = await this.deliveryEngine.manualTestDelivery(tenant, endpoint, eventType, payload);
+
+    return {
+      success: result.success,
+      responseStatus: result.responseStatus,
+      durationMs: result.durationMs,
+      errorMessage: result.errorMessage,
+      responseBody: result.responseBody,
+    };
+  }
+
   async findByApp(tenantId: string, appId: string, limit = 100, offset = 0) {
     const app = await this.appRepository.findOne({ where: { id: appId, tenantId } });
     if (!app) throw new NotFoundException('App not found');

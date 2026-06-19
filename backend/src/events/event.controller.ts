@@ -23,6 +23,16 @@ class PublishEventBody {
   idempotencyKey?: string;
 }
 
+class ManualTestDeliveryBody {
+  @IsString()
+  @MinLength(5)
+  @MaxLength(200)
+  eventType: string;
+
+  @IsObject()
+  payload: Record<string, any>;
+}
+
 @ApiTags('Events')
 @Controller()
 export class EventController {
@@ -73,6 +83,23 @@ export class EventController {
     @Param('endpointId') endpointId: string,
   ) {
     return this.eventService.publishTestEvent(req.user.tenantId, endpointId);
+  }
+
+  @Post('api/events/test/:endpointId/manual')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Manually send test event with custom payload to endpoint' })
+  async manualTestDelivery(
+    @Request() req: any,
+    @Param('endpointId') endpointId: string,
+    @Body() dto: ManualTestDeliveryBody,
+  ) {
+    return this.eventService.manualTestDelivery(
+      req.user.tenantId,
+      endpointId,
+      dto.eventType,
+      dto.payload,
+    );
   }
 
   @Get('api/events/app/:appId')

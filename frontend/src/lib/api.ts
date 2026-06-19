@@ -137,6 +137,8 @@ export const eventsApi = {
   get: (id: string) => ApiClient.get(`/api/events/${id}`),
   testDelivery: (endpointId: string) =>
     ApiClient.post(`/api/events/test/${endpointId}`),
+  manualTestDelivery: (endpointId: string, data: { eventType: string; payload: any }) =>
+    ApiClient.post(`/api/events/test/${endpointId}/manual`, data),
 };
 
 export const metricsApi = {
