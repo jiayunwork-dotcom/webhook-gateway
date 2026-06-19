@@ -2,6 +2,9 @@
   import './app.css';
   import { Router, Route, navigate, Link } from 'svelte-routing';
   import { auth, uiStore } from './lib/store';
+
+  const { sidebarOpen } = uiStore;
+  const { token, tenant } = auth;
   import LoginPage from './pages/Login.svelte';
   import RegisterPage from './pages/Register.svelte';
   import Dashboard from './pages/Dashboard.svelte';
@@ -22,8 +25,8 @@
     currentPath = window.location.pathname;
   }
 
-  $: requireAuth = $auth.token && !$auth.tenant;
-  $: user = $auth.tenant;
+  $: requireAuth = $token && !$tenant;
+  $: user = $tenant;
 
   const navItems = [
     { path: '/', label: '概览', icon: '📊' },
@@ -49,7 +52,7 @@
 </script>
 
 <Router url="{typeof window !== 'undefined' ? window.location.pathname : '/'}">
-  {#if !$auth.token && !['/login', '/register'].includes(currentPath)}
+  {#if !$token && !['/login', '/register'].includes(currentPath)}
     {#if typeof window !== 'undefined'}
       {navigate('/login', { replace: true })}
     {/if}
@@ -59,7 +62,7 @@
     <Route path="/login" component="{LoginPage}" />
     <Route path="/register" component="{RegisterPage}" />
   {:else}
-    <div class="app-shell" class:sidebar-collapsed="{!$uiStore.sidebarOpen}">
+    <div class="app-shell" class:sidebar-collapsed="{!$sidebarOpen}">
       <aside class="sidebar">
         <div class="sidebar-header">
           <div class="logo">
@@ -69,8 +72,8 @@
               <div class="logo-sub">事件分发平台</div>
             </div>
           </div>
-          <button class="sidebar-toggle" on:click="{() => uiStore.sidebarOpen.update(v => !v)}" title="收起/展开">
-            {$uiStore.sidebarOpen ? '◀' : '▶'}
+          <button class="sidebar-toggle" on:click="{() => sidebarOpen.update(v => !v)}" title="收起/展开">
+            {$sidebarOpen ? '◀' : '▶'}
           </button>
         </div>
 
