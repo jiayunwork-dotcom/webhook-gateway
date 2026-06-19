@@ -18,7 +18,7 @@ interface DeliveryResult {
 
 @Injectable()
 export class MetricsService {
-  private readonly logger = new Logger(MetricsService.class);
+  private readonly logger = new Logger(MetricsService.name);
 
   constructor(
     @InjectRepository(Metric)

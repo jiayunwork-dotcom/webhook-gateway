@@ -220,7 +220,7 @@
           </div>
           <div class="form-group">
             <label class="form-label">自定义请求头(JSON)</label>
-            <textarea class="form-textarea" bind:value="{form.customHeaders}" placeholder='{"X-Token": "xxx"}' style="min-height: 60px;"></textarea>
+            <textarea class="form-textarea" bind:value="{form.customHeaders}" placeholder={'{"X-Token": "xxx"}'} style="min-height: 60px;"></textarea>
           </div>
           {#if formError}
             <div style="padding:0.5rem 0.75rem;background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:6px;font-size:0.875rem;">{formError}</div>

@@ -24,6 +24,7 @@ class PublishEventBody {
 }
 
 @ApiTags('Events')
+@Controller()
 export class EventController {
   constructor(private readonly eventService: EventService) {}
 

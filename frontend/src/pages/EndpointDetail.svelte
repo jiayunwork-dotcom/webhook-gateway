@@ -1,10 +1,10 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { navigate, useParams } from 'svelte-routing';
+  import { navigate } from 'svelte-routing';
   import { endpointsApi, logsApi, metricsApi, eventsApi } from '../lib/api';
   import { formatDate, formatRelative, formatBytes, uiStore, statusColor, statusText } from '../lib/store';
 
-  export let params = useParams();
+  export let id = '';
 
   let endpoint: any = null;
   let logs: any[] = [];
@@ -19,7 +19,6 @@
 
   async function loadData() {
     try {
-      const id = params.id;
       const [ep, lg, mt] = await Promise.all([
         endpointsApi.get(id),
         logsApi.endpointLogs(id, 50),
@@ -46,7 +45,7 @@
   async function testDelivery() {
     showTestResult = null;
     try {
-      const r = await eventsApi.testDelivery(params.id);
+      const r = await eventsApi.testDelivery(id);
       uiStore.success('测试投递已发送');
       setTimeout(() => loadData(), 2000);
     } catch (e: any) {
@@ -78,7 +77,7 @@
     }
     submitting = true;
     try {
-      await endpointsApi.update(params.id, data);
+      await endpointsApi.update(id, data);
       uiStore.success('已保存');
       showEditModal = false;
       loadData();

@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { APP_FILTER, APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core';
-import { BaseExceptionFilter, ValidationPipe, Logger } from '@nestjs/common';
+import { APP_FILTER, APP_INTERCEPTOR, APP_PIPE, BaseExceptionFilter } from '@nestjs/core';
+import { ValidationPipe, Logger } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { Tenant } from './entities/tenant.entity';
 import { App as AppEntity } from './entities/app.entity';

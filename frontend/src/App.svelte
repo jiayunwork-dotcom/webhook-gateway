@@ -76,14 +76,15 @@
 
         <nav class="sidebar-nav">
           {#each navItems as item}
-            <Link
-              to="{item.path}"
+            <a
+              href="{item.path}"
               class="nav-link"
               class:active="{isActive(item.path)}"
+              on:click|preventDefault="{() => navigate(item.path, { replace: false })}"
             >
               <span class="nav-icon">{item.icon}</span>
               <span class="nav-label">{item.label}</span>
-            </Link>
+            </a>
           {/each}
         </nav>
 

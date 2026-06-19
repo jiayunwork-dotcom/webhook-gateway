@@ -8,12 +8,14 @@ import { EventController } from './event.controller';
 import { ConfigModule } from '../config/config.module';
 import { EndpointsModule } from '../endpoints/endpoint.module';
 import { DeliveryModule } from '../delivery/delivery.module';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([WebhookEvent, App, Tenant]),
     ConfigModule,
     EndpointsModule,
+    AuthModule,
     forwardRef(() => DeliveryModule),
   ],
   controllers: [EventController],

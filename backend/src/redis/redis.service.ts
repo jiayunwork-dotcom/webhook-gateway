@@ -11,7 +11,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   constructor(private readonly configService: ConfigService) {}
 
   async onModuleInit() {
-    const options: Redis.RedisOptions = {
+    const options: any = {
       host: this.configService.redisHost,
       port: this.configService.redisPort,
       password: this.configService.redisPassword || undefined,
@@ -82,11 +82,10 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   }
 
   async zrangebyscore(key: string, min: number, max: number, limit?: number): Promise<string[]> {
-    const args: any[] = [key, min, max];
     if (limit !== undefined) {
-      args.push('LIMIT', 0, limit);
+      return this.getClient().zrangebyscore(key, min, max, 'LIMIT', 0, limit);
     }
-    return this.getClient().zrangebyscore(...args);
+    return this.getClient().zrangebyscore(key, min, max);
   }
 
   async zrem(key: string, member: string): Promise<number> {

@@ -1,10 +1,10 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { navigate, useParams } from 'svelte-routing';
+  import { navigate } from 'svelte-routing';
   import { appsApi, endpointsApi, metricsApi, eventsApi } from '../lib/api';
   import { formatRelative, uiStore, statusColor, statusText } from '../lib/store';
 
-  export let params = useParams();
+  export let id = '';
 
   let app: any = null;
   let endpoints: any[] = [];
@@ -24,7 +24,6 @@
 
   async function loadData() {
     try {
-      const id = params.id;
       const [a, es, m, et] = await Promise.all([
         appsApi.get(id),
         endpointsApi.list(id),
@@ -88,7 +87,7 @@
           return;
         }
       }
-      await endpointsApi.create(params.id, data);
+      await endpointsApi.create(id, data);
       uiStore.success('端点创建成功');
       showCreateEndpoint = false;
       endpointForm = { name: '', description: '', url: '', subscribedEvents: '', rateLimitPerSecond: 50, customHeaders: '' };
@@ -119,7 +118,7 @@
     try {
       const data: any = { eventType: eventForm.eventType, payload, eventSource: 'admin_panel' };
       if (eventForm.idempotencyKey) data.idempotencyKey = eventForm.idempotencyKey;
-      publishResult = await eventsApi.publish(params.id, data);
+      publishResult = await eventsApi.publish(id, data);
       uiStore.success(`事件发布成功，匹配 ${publishResult.matchedEndpoints} 个端点`);
     } catch (err: any) {
       eventFormError = err.message;
@@ -310,7 +309,7 @@
           <div class="form-group">
             <label class="form-label">自定义请求头 (JSON)</label>
             <textarea class="form-textarea" bind:value="{endpointForm.customHeaders}"
-              placeholder='{"Authorization": "Bearer xxx"}' style="min-height: 60px;"></textarea>
+              placeholder={'{"Authorization": "Bearer xxx"}'} style="min-height: 60px;"></textarea>
           </div>
           {#if endpointFormError}
             <div class="alert alert-error" style="padding: 0.5rem 0.75rem; font-size: 0.875rem;">{endpointFormError}</div>

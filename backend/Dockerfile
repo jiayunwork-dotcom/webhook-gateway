@@ -5,8 +5,9 @@ WORKDIR /app
 RUN apk add --no-cache python3 make g++
 
 COPY package*.json ./
+COPY .npmrc ./
 
-RUN npm ci
+RUN npm install
 
 COPY tsconfig*.json ./
 COPY nest-cli.json ./
