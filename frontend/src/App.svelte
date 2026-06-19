@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, afterUpdate } from 'svelte';
   import './app.css';
-  import { Router, Route, navigate, Link } from 'svelte-routing';
+  import { Router, Route, navigate } from 'svelte-routing';
   import { auth, uiStore } from './lib/store';
 
   import LoginPage from './pages/Login.svelte';
@@ -20,32 +20,66 @@
 
   let currentPath = '/';
   let sidebarCollapsed = false;
+  let mounted = false;
 
   onMount(() => {
+    mounted = true;
     currentPath = window.location.pathname;
+
     const unsub = uiStore.sidebarOpen.subscribe(v => {
       sidebarCollapsed = !v;
     });
-    window.addEventListener('popstate', updatePath);
+
+    window.addEventListener('popstate', onLocationChange);
+    window.addEventListener('pushstate', onLocationChange);
+    window.addEventListener('replacestate', onLocationChange);
+
+    const origPush = history.pushState;
+    history.pushState = function(...args) {
+      const ret = origPush.apply(this, args);
+      setTimeout(onLocationChange, 0);
+      return ret;
+    };
+    const origReplace = history.replaceState;
+    history.replaceState = function(...args) {
+      const ret = origReplace.apply(this, args);
+      setTimeout(onLocationChange, 0);
+      return ret;
+    };
+
     return () => {
       unsub();
-      window.removeEventListener('popstate', updatePath);
+      window.removeEventListener('popstate', onLocationChange);
+      window.removeEventListener('pushstate', onLocationChange);
+      window.removeEventListener('replacestate', onLocationChange);
+      history.pushState = origPush;
+      history.replaceState = origReplace;
     };
   });
 
-  function updatePath() {
+  afterUpdate(() => {
+    if (mounted && currentPath !== window.location.pathname) {
+      currentPath = window.location.pathname;
+    }
+  });
+
+  function onLocationChange() {
     currentPath = window.location.pathname;
   }
 
-  function toggleSidebar() {
-    uiStore.sidebarOpen.update(v => {
-      sidebarCollapsed = !v;
-      return !v;
-    });
-  }
-
-  $: requireAuth = $auth.token && !$auth.tenant;
+  $: isAuthPage = currentPath === '/login' || currentPath === '/register';
+  $: hasToken = !!$auth.token;
   $: user = $auth.tenant;
+
+  $: {
+    if (!mounted) continue;
+    if (!hasToken && !isAuthPage) {
+      setTimeout(() => navigate('/login', { replace: true }), 0);
+    }
+    if (hasToken && isAuthPage) {
+      setTimeout(() => navigate('/', { replace: true }), 0);
+    }
+  }
 
   const navItems = [
     { path: '/', label: '概览', icon: '📊' },
@@ -58,34 +92,35 @@
     { path: '/settings', label: '系统设置', icon: '🛠️' },
   ];
 
+  function toggleSidebar() {
+    uiStore.sidebarOpen.update(v => {
+      sidebarCollapsed = !v;
+      return !v;
+    });
+  }
+
   function onLogout() {
     auth.logout();
     navigate('/login');
     uiStore.success('已退出登录');
   }
 
-  const isActive = (path: string) => {
+  function isActive(path: string) {
     if (path === '/') return currentPath === '/';
     return currentPath.startsWith(path);
-  };
+  }
 
   function goTo(path: string) {
     navigate(path, { replace: false });
-    setTimeout(updatePath, 0);
+    setTimeout(onLocationChange, 0);
   }
 </script>
 
-<Router url="{typeof window !== 'undefined' ? window.location.pathname : '/'}">
-  {#if !$auth.token && !['/login', '/register'].includes(currentPath)}
-    {#if typeof window !== 'undefined'}
-      {navigate('/login', { replace: true })}
-    {/if}
-  {/if}
+<Router>
+  <Route path="/login" component="{LoginPage}" />
+  <Route path="/register" component="{RegisterPage}" />
 
-  {#if ['/login', '/register'].includes(currentPath)}
-    <Route path="/login" component="{LoginPage}" />
-    <Route path="/register" component="{RegisterPage}" />
-  {:else}
+  {#if !isAuthPage}
     <div class="app-shell" class:sidebar-collapsed="{sidebarCollapsed}">
       <aside class="sidebar">
         <div class="sidebar-header">
@@ -139,12 +174,12 @@
               <span>Webhook Gateway</span>
               <span class="sep">/</span>
               <span class="current">
-                {navItems.find(n => currentPath === n.path || currentPath.startsWith(n.path) && n.path !== '/')?.label || '概览'}
+                {navItems.find(n => currentPath === n.path || (currentPath.startsWith(n.path) && n.path !== '/'))?.label || '概览'}
               </span>
             </div>
           </div>
           <div class="topbar-right">
-            <button class="icon-btn" title="告警" on:click="{() => navigate('/alerts')}">
+            <button class="icon-btn" title="告警" on:click="{() => goTo('/alerts')}">
               🔔
             </button>
           </div>
