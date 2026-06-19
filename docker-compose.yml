@@ -1,0 +1,97 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: webhook-gateway-postgres
+    environment:
+      POSTGRES_USER: ${DB_USER:-webhook}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-webhook_secret_2024}
+      POSTGRES_DB: ${DB_NAME:-webhook_gateway}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U webhook -d webhook_gateway"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - webhook-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: webhook-gateway-redis
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis_secret_2024}
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redis_secret_2024}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - webhook-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: webhook-gateway-backend
+    environment:
+      NODE_ENV: production
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-webhook}
+      DB_PASSWORD: ${DB_PASSWORD:-webhook_secret_2024}
+      DB_NAME: ${DB_NAME:-webhook_gateway}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_secret_2024}
+      JWT_SECRET: ${JWT_SECRET:-jwt_super_secret_key_change_in_production}
+      APP_PORT: 3000
+      TRANSITION_PERIOD_HOURS: 72
+      DELIVERY_TIMEOUT_MS: 30000
+      MAX_RETRY_COUNT: 6
+      UNHEALTHY_THRESHOLD: 5
+      PROBE_INTERVAL_MS: 600000
+      PROBE_SUCCESS_THRESHOLD: 3
+      DEFAULT_RATE_LIMIT: 50
+      MAX_APPS_PER_TENANT: 20
+      MAX_ENDPOINTS_PER_APP: 50
+      MAX_EVENT_SIZE_BYTES: 262144
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    volumes:
+      - backend_logs:/app/logs
+    networks:
+      - webhook-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: webhook-gateway-frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    networks:
+      - webhook-network
+
+volumes:
+  postgres_data:
+  redis_data:
+  backend_logs:
+
+networks:
+  webhook-network:
+    driver: bridge
