@@ -174,6 +174,7 @@ export function statusColor(status: string): string {
     case 'success':
     case 'delivered':
     case 'resolved':
+    case 'completed':
       return 'bg-green-100 text-green-800 border-green-200';
     case 'unhealthy':
     case 'failed':
@@ -186,10 +187,15 @@ export function statusColor(status: string): string {
     case 'pending':
     case 'warning':
     case 'acknowledged':
+    case 'queued':
+    case 'running':
+    case 'rate_limited':
       return 'bg-yellow-100 text-yellow-800 border-yellow-200';
     case 'active':
     case 'info':
       return 'bg-blue-100 text-blue-800 border-blue-200';
+    case 'partially_failed':
+      return 'bg-orange-100 text-orange-800 border-orange-200';
     default:
       return 'bg-gray-100 text-gray-800 border-gray-200';
   }
@@ -213,6 +219,11 @@ export function statusText(status: string): string {
     active: '活跃',
     acknowledged: '已确认',
     resolved: '已解决',
+    queued: '排队中',
+    running: '执行中',
+    completed: '已完成',
+    partially_failed: '部分失败',
+    rate_limited: '限流失败',
   };
   return map[status] || status;
 }

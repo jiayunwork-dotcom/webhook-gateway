@@ -192,3 +192,16 @@ export const alertsApi = {
   updateRule: (id: string, data: any) => ApiClient.put(`/api/alerts/rules/${id}`, data),
   deleteRule: (id: string) => ApiClient.delete(`/api/alerts/rules/${id}`),
 };
+
+export const replaysApi = {
+  create: (data: { name: string; logIds: string[] }) =>
+    ApiClient.post('/api/replays', data),
+  list: (status?: string, limit = 100, offset = 0) => {
+    let qs = `limit=${limit}&offset=${offset}`;
+    if (status) qs += `&status=${status}`;
+    return ApiClient.get(`/api/replays?${qs}`);
+  },
+  get: (id: string) => ApiClient.get(`/api/replays/${id}`),
+  retryFailed: (id: string) =>
+    ApiClient.post(`/api/replays/${id}/retry-failed`),
+};

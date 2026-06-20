@@ -16,6 +16,8 @@
   import AlertsPage from './pages/Alerts.svelte';
   import AlertRulesPage from './pages/AlertRules.svelte';
   import SettingsPage from './pages/Settings.svelte';
+  import ReplaysPage from './pages/Replays.svelte';
+  import ReplayDetailPage from './pages/ReplayDetail.svelte';
   import Toast from './components/Toast.svelte';
 
   let currentPath = '/';
@@ -87,6 +89,7 @@
     { path: '/apps', label: '应用管理', icon: '📱' },
     { path: '/endpoints', label: '接收端点', icon: '🔗' },
     { path: '/logs', label: '投递日志', icon: '📋' },
+    { path: '/replays', label: '事件回放', icon: '🔁' },
     { path: '/dead-letters', label: '死信队列', icon: '📬' },
     { path: '/alerts', label: '告警中心', icon: '🔔' },
     { path: '/alert-rules', label: '告警规则', icon: '⚙️' },
@@ -193,6 +196,8 @@
           <Route path="/endpoints" component="{EndpointsPage}" />
           <Route path="/endpoints/:id" component="{EndpointDetailPage}" />
           <Route path="/logs" component="{LogsPage}" />
+          <Route path="/replays" component="{ReplaysPage}" />
+          <Route path="/replays/:id" component="{ReplayDetailPage}" />
           <Route path="/dead-letters" component="{DeadLettersPage}" />
           <Route path="/alerts" component="{AlertsPage}" />
           <Route path="/alert-rules" component="{AlertRulesPage}" />

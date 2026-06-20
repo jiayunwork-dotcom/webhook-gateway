@@ -12,6 +12,8 @@ import { DeadLetter } from './entities/dead-letter.entity';
 import { Alert } from './entities/alert.entity';
 import { AlertRule } from './entities/alert-rule.entity';
 import { Metric } from './entities/metric.entity';
+import { ReplayTask } from './entities/replay-task.entity';
+import { ReplayItem } from './entities/replay-item.entity';
 import { ConfigModule, ConfigService } from './config/config.module';
 import { DatabaseConfig } from './database/database-config';
 import { RedisModule } from './redis/redis.module';
@@ -24,6 +26,7 @@ import { DeliveryModule } from './delivery/delivery.module';
 import { MetricsModule } from './metrics/metrics.module';
 import { AlertsModule } from './alerts/alert.module';
 import { LogsModule } from './logs/logs.module';
+import { ReplayModule } from './replay/replay.module';
 
 @Catch()
 class AllExceptionsFilter extends BaseExceptionFilter {
@@ -71,7 +74,7 @@ class AllExceptionsFilter extends BaseExceptionFilter {
       useClass: DatabaseConfig,
       inject: [ConfigService],
     }),
-    TypeOrmModule.forFeature([Tenant, AppEntity, Endpoint, WebhookEvent, DeliveryLog, DeadLetter, Alert, AlertRule, Metric]),
+    TypeOrmModule.forFeature([Tenant, AppEntity, Endpoint, WebhookEvent, DeliveryLog, DeadLetter, Alert, AlertRule, Metric, ReplayTask, ReplayItem]),
     RedisModule,
     AuthModule,
     AppsModule,
@@ -82,6 +85,7 @@ class AllExceptionsFilter extends BaseExceptionFilter {
     MetricsModule,
     AlertsModule,
     LogsModule,
+    ReplayModule,
   ],
   controllers: [AppController],
   providers: [
