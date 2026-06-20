@@ -10,6 +10,8 @@ import { DeadLetter } from '../entities/dead-letter.entity';
 import { Alert } from '../entities/alert.entity';
 import { AlertRule } from '../entities/alert-rule.entity';
 import { Metric } from '../entities/metric.entity';
+import { ReplayTask } from '../entities/replay-task.entity';
+import { ReplayItem } from '../entities/replay-item.entity';
 
 @Injectable()
 export class DatabaseConfig implements TypeOrmOptionsFactory {
@@ -33,6 +35,8 @@ export class DatabaseConfig implements TypeOrmOptionsFactory {
         Alert,
         AlertRule,
         Metric,
+        ReplayTask,
+        ReplayItem,
       ],
       synchronize: this.configService.nodeEnv !== 'production',
       logging: this.configService.nodeEnv === 'development',
