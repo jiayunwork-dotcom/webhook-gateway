@@ -1,9 +1,12 @@
 import {
   WebSocketGateway,
   WebSocketServer,
+  SubscribeMessage,
   OnGatewayConnection,
   OnGatewayDisconnect,
   OnGatewayInit,
+  MessageBody,
+  ConnectedSocket,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { Injectable, Logger } from '@nestjs/common';
@@ -103,6 +106,12 @@ export class NotificationGateway
       }
       this.logger.log(`WebSocket disconnected: tenant=${tenantId}, socket=${client.id}`);
     }
+  }
+
+  @SubscribeMessage('ping')
+  handlePing(@ConnectedSocket() client: Socket): string {
+    client.emit('pong', { timestamp: new Date().toISOString() });
+    return 'pong';
   }
 
   sendDeliveryNotification(tenantId: string, notification: DeliveryNotification): boolean {

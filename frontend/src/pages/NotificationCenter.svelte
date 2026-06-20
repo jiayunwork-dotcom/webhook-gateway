@@ -24,6 +24,7 @@
   let maxReconnectDelay = 60000;
   let listContainer: HTMLElement;
   let notificationCount = 0;
+  let destroyed = false;
 
   const MAX_NOTIFICATIONS = 200;
   const PING_INTERVAL = 30000;
@@ -34,7 +35,23 @@
     return base;
   }
 
+  function cleanupAll() {
+    destroyed = true;
+    stopHeartbeat();
+    clearReconnect();
+    if (socket) {
+      try {
+        socket.removeAllListeners();
+        socket.disconnect(true);
+      } catch (e) {
+        console.error('Error disconnecting socket:', e);
+      }
+      socket = null;
+    }
+  }
+
   function connect() {
+    if (destroyed) return;
     if (socket && socket.connected) return;
 
     connectionStatus = 'connecting';
@@ -46,9 +63,11 @@
       transports: ['websocket'],
       auth: { token },
       reconnection: false,
+      forceNew: true,
     });
 
     socket.on('connect', () => {
+      if (destroyed) return;
       connectionStatus = 'connected';
       missedPongs = 0;
       reconnectAttempts = 0;
@@ -56,10 +75,12 @@
     });
 
     socket.on('welcome', (data: any) => {
+      if (destroyed) return;
       console.log('WebSocket welcome:', data);
     });
 
     socket.on('delivery_notification', (notification: DeliveryNotification) => {
+      if (destroyed) return;
       notifications = [notification, ...notifications];
       if (notifications.length > MAX_NOTIFICATIONS) {
         notifications = notifications.slice(0, MAX_NOTIFICATIONS);
@@ -73,20 +94,24 @@
     });
 
     socket.on('pong', () => {
+      if (destroyed) return;
       missedPongs = 0;
     });
 
     socket.on('error', (err: any) => {
+      if (destroyed) return;
       console.error('WebSocket error:', err);
     });
 
     socket.on('disconnect', (reason: string) => {
+      if (destroyed) return;
       connectionStatus = 'disconnected';
       stopHeartbeat();
       scheduleReconnect();
     });
 
     socket.on('connect_error', (err: any) => {
+      if (destroyed) return;
       console.error('WebSocket connect error:', err);
       connectionStatus = 'disconnected';
       scheduleReconnect();
@@ -97,13 +122,16 @@
     stopHeartbeat();
     missedPongs = 0;
     pingInterval = setInterval(() => {
+      if (destroyed) return;
       if (socket && socket.connected) {
         missedPongs++;
         if (missedPongs >= MAX_MISSED_PONGS) {
           console.warn('Max missed pongs reached, disconnecting');
           connectionStatus = 'disconnected';
           stopHeartbeat();
-          socket.disconnect();
+          try {
+            socket.disconnect();
+          } catch (e) { /* ignore */ }
           scheduleReconnect();
           return;
         }
@@ -120,11 +148,13 @@
   }
 
   function scheduleReconnect() {
+    if (destroyed) return;
     if (reconnectTimer) return;
     const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), maxReconnectDelay);
     console.log(`Reconnecting in ${delay}ms (attempt ${reconnectAttempts + 1})`);
     reconnectTimer = setTimeout(() => {
       reconnectTimer = null;
+      if (destroyed) return;
       reconnectAttempts++;
       connect();
     }, delay);
@@ -196,16 +226,12 @@
   }
 
   onMount(() => {
+    destroyed = false;
     connect();
   });
 
   onDestroy(() => {
-    stopHeartbeat();
-    clearReconnect();
-    if (socket) {
-      socket.disconnect();
-      socket = null;
-    }
+    cleanupAll();
   });
 </script>
 
