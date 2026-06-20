@@ -9,6 +9,7 @@
   let loading = true;
   let filterStatus = '';
   let pollTimer: any = null;
+  let lastFilterStatus = '';
 
   const statusOptions = [
     { value: '', label: '全部状态' },
@@ -20,7 +21,6 @@
   ];
 
   async function loadData() {
-    loading = true;
     try {
       const r = await replaysApi.list(filterStatus || undefined);
       items = r.items || [];
@@ -33,37 +33,47 @@
     return items.some(t => t.status === 'queued' || t.status === 'running');
   }
 
-  function startPolling() {
-    stopPolling();
-    pollTimer = setInterval(() => {
-      loadData();
-    }, 3000);
-  }
-
-  function stopPolling() {
-    if (pollTimer) {
+  function updatePolling() {
+    const needPoll = hasActiveTasks();
+    if (needPoll && !pollTimer) {
+      pollTimer = setInterval(() => {
+        loadData();
+      }, 3000);
+    } else if (!needPoll && pollTimer) {
       clearInterval(pollTimer);
       pollTimer = null;
     }
   }
 
-  $: {
-    if (filterStatus !== undefined) {
+  function onFilterChange() {
+    if (filterStatus !== lastFilterStatus) {
+      lastFilterStatus = filterStatus;
+      loading = true;
       loadData();
-      if (hasActiveTasks()) {
-        startPolling();
-      } else {
-        stopPolling();
-      }
+    }
+  }
+
+  function onRefreshClick() {
+    loading = true;
+    loadData();
+  }
+
+  $: {
+    if (items && items.length >= 0) {
+      updatePolling();
     }
   }
 
   onMount(() => {
+    lastFilterStatus = filterStatus;
     loadData();
   });
 
   onDestroy(() => {
-    stopPolling();
+    if (pollTimer) {
+      clearInterval(pollTimer);
+      pollTimer = null;
+    }
   });
 
   function progressPercent(task: any): number {
@@ -78,12 +88,12 @@
     <p class="text-muted mb-0">管理历史投递的批量回放任务（共 {total} 个）</p>
   </div>
   <div class="page-actions">
-    <select class="form-input" style="width: 160px;" bind:value="{filterStatus}">
+    <select class="form-input" style="width: 160px;" bind:value="{filterStatus}" on:change="{onFilterChange}">
       {#each statusOptions as opt (opt.value)}
         <option value="{opt.value}">{opt.label}</option>
       {/each}
     </select>
-    <button class="btn btn-secondary" on:click="{loadData}">🔄 刷新</button>
+    <button class="btn btn-secondary" on:click="{onRefreshClick}">🔄 刷新</button>
   </div>
 </div>
 
@@ -106,7 +116,7 @@
           </thead>
           <tbody>
             {#each items as task (task.id)}
-              <tr class="cursor-pointer" on:click="{() => navigate(`/replays/${task.id}`)}">
+              <tr class="cursor-pointer" on:click="{() => navigate('/replays/' + task.id)}">
                 <td class="font-medium">{task.name}</td>
                 <td style="white-space: nowrap;" class="text-sm">{formatDate(task.createdAt)}</td>
                 <td>{task.totalCount} 条</td>

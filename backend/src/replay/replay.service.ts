@@ -59,7 +59,7 @@ export class ReplayService implements OnModuleInit {
   }
 
   private rateLimitKey(endpointId: string, second: number): string {
-    return `ratelimit:${endpointId}:${second}`;
+    return `replay:ratelimit:${endpointId}:${second}`;
   }
 
   async createTask(tenantId: string, dto: CreateReplayTaskDto): Promise<ReplayTask> {
@@ -248,16 +248,32 @@ export class ReplayService implements OnModuleInit {
     const endpoint = await this.endpointRepository.findOne({ where: { id: endpointId } });
     if (!endpoint) return true;
 
+    const limit = endpoint.rateLimitPerSecond;
+    if (!limit || limit <= 0) {
+      return true;
+    }
+
     const now = Date.now();
     const secondBucket = Math.floor(now / 1000);
     const key = this.rateLimitKey(endpointId, secondBucket);
 
-    const current = await this.redisService.incr(key);
-    if (current === 1) {
-      await this.redisService.set(key, '1', 2000);
+    const client = this.redisService.getClient();
+    const [incrResult] = await client
+      .multi()
+      .incr(key)
+      .expire(key, 3)
+      .exec();
+
+    const current = incrResult && typeof incrResult[1] === 'number' ? incrResult[1] : 0;
+
+    if (current > limit) {
+      this.logger.debug(
+        `Replay rate limit exceeded for endpoint ${endpointId}: ${current}/${limit}`,
+      );
+      return false;
     }
 
-    return current <= endpoint.rateLimitPerSecond;
+    return true;
   }
 
   private async executeReplayItem(task: ReplayTask, item: ReplayItem): Promise<void> {
