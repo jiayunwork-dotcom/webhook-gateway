@@ -272,41 +272,43 @@
               <div class="text-sm text-muted mb-2">响应码分布</div>
               <div class="bar-chart" style="height: 100px;">
                 {#each Object.entries(comparisonData.summary.originalStatusDistribution || {}) as [code, count] (code)}
+                  {@const origCount = Number(count)}
+                  {@const repCount = Number(comparisonData.summary.replayStatusDistribution?.[code] || 0)}
                   <div class="bar-chart-item">
                     <div class="text-xs font-medium">#{code}</div>
                     <div style="display: flex; gap: 2px; align-items: flex-end; height: 60px;">
-                      <div 
-                        class="bar-chart-bar" 
-                        style="background: #94a3b8; height: {((count as number) / getMaxStatusCount()) * 100}%;"
-                        title="原始: {count}"
+                      <div
+                        class="bar-chart-bar"
+                        style="background: #94a3b8; height: {(origCount / getMaxStatusCount()) * 100}%;"
+                        title="原始: {origCount}"
                       ></div>
-                      {@const repCount = comparisonData.summary.replayStatusDistribution?.[code] || 0}
-                      <div 
-                        class="bar-chart-bar" 
+                      <div
+                        class="bar-chart-bar"
                         style="background: var(--color-primary); height: {(repCount / getMaxStatusCount()) * 100}%;"
                         title="回放: {repCount}"
                       ></div>
                     </div>
-                    <div class="text-xs" style="color: var(--color-text-muted);">{count} → {repCount}</div>
+                    <div class="text-xs" style="color: var(--color-text-muted);">{origCount} → {repCount}</div>
                   </div>
                 {/each}
                 {#each Object.entries(comparisonData.summary.replayStatusDistribution || {}) as [code, count] (code)}
-                  {#if comparisonData.summary.originalStatusDistribution === undefined || comparisonData.summary.originalStatusDistribution[code] === undefined}
+                  {@const replayOnlyCount = Number(count)}
+                  {#if !comparisonData.summary.originalStatusDistribution || comparisonData.summary.originalStatusDistribution[code] === undefined}
                     <div class="bar-chart-item">
                       <div class="text-xs font-medium">#{code}</div>
                       <div style="display: flex; gap: 2px; align-items: flex-end; height: 60px;">
-                        <div 
-                          class="bar-chart-bar" 
+                        <div
+                          class="bar-chart-bar"
                           style="background: #94a3b8; height: 4px;"
                           title="原始: 0"
                         ></div>
-                        <div 
-                          class="bar-chart-bar" 
-                          style="background: var(--color-primary); height: {((count as number) / getMaxStatusCount()) * 100}%;"
-                          title="回放: {count}"
+                        <div
+                          class="bar-chart-bar"
+                          style="background: var(--color-primary); height: {(replayOnlyCount / getMaxStatusCount()) * 100}%;"
+                          title="回放: {replayOnlyCount}"
                         ></div>
                       </div>
-                      <div class="text-xs" style="color: var(--color-text-muted);">0 → {count}</div>
+                      <div class="text-xs" style="color: var(--color-text-muted);">0 → {replayOnlyCount}</div>
                     </div>
                   {/if}
                 {/each}

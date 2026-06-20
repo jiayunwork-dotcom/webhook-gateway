@@ -61,10 +61,10 @@
     }
   }
 
-  function formatCountdown(scheduledAt: string | null | undefined): string {
+  function formatCountdown(scheduledAt: string | null | undefined, _now: number): string {
     if (!scheduledAt) return '';
     const target = new Date(scheduledAt).getTime();
-    const diff = target - nowTimestamp;
+    const diff = target - _now;
     if (diff <= 0) return '即将开始...';
     const totalSeconds = Math.floor(diff / 1000);
     const hours = Math.floor(totalSeconds / 3600);
@@ -162,7 +162,7 @@
                       {formatDate(task.scheduledAt)}
                     </span>
                     <div class="text-xs" style="color: #6b21a8; margin-top: 2px;">
-                      ⏰ {formatCountdown(task.scheduledAt)}
+                      ⏰ {formatCountdown(task.scheduledAt, nowTimestamp)}
                     </div>
                   {:else if task.scheduledAt}
                     {formatDate(task.scheduledAt)}

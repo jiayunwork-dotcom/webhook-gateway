@@ -24,7 +24,7 @@ export class CreateReplayTaskDto {
 
   @IsOptional()
   @IsDateString()
-  scheduledAt?: string;
+  scheduledAt?: string | Date;
 }
 
 export interface ComparisonSummary {
@@ -139,7 +139,11 @@ export class ReplayService implements OnModuleInit {
 
     let scheduledAt: Date | null = null;
     if (dto.scheduledAt) {
-      scheduledAt = new Date(dto.scheduledAt);
+      if (dto.scheduledAt instanceof Date) {
+        scheduledAt = dto.scheduledAt;
+      } else {
+        scheduledAt = new Date(dto.scheduledAt);
+      }
       if (isNaN(scheduledAt.getTime())) {
         throw new HttpException('计划执行时间格式无效', HttpStatus.BAD_REQUEST);
       }
