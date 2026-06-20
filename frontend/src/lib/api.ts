@@ -206,3 +206,17 @@ export const replaysApi = {
   retryFailed: (id: string) =>
     ApiClient.post(`/api/replays/${id}/retry-failed`),
 };
+
+export const notificationsApi = {
+  getRules: () => ApiClient.get('/api/notifications/rules'),
+  saveRules: (data: { endpointIds?: string[] | null; statusFilters?: ('success' | 'failed' | 'timeout')[] | null }) =>
+    ApiClient.put('/api/notifications/rules', data),
+  getHistory: (params?: { startDate?: string; endDate?: string; status?: string; page?: number; pageSize?: number }) => {
+    const qs = new URLSearchParams(
+      Object.entries(params || {})
+        .filter(([, v]) => v !== undefined && v !== null && v !== '')
+        .map(([k, v]) => [k, String(v)])
+    ).toString();
+    return ApiClient.get(`/api/notifications/history${qs ? '?' + qs : ''}`);
+  },
+};

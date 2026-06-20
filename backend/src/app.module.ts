@@ -14,6 +14,8 @@ import { AlertRule } from './entities/alert-rule.entity';
 import { Metric } from './entities/metric.entity';
 import { ReplayTask } from './entities/replay-task.entity';
 import { ReplayItem } from './entities/replay-item.entity';
+import { NotificationRule } from './entities/notification-rule.entity';
+import { NotificationHistory } from './entities/notification-history.entity';
 import { ConfigModule, ConfigService } from './config/config.module';
 import { DatabaseConfig } from './database/database-config';
 import { RedisModule } from './redis/redis.module';
@@ -75,7 +77,7 @@ class AllExceptionsFilter extends BaseExceptionFilter {
       useClass: DatabaseConfig,
       inject: [ConfigService],
     }),
-    TypeOrmModule.forFeature([Tenant, AppEntity, Endpoint, WebhookEvent, DeliveryLog, DeadLetter, Alert, AlertRule, Metric, ReplayTask, ReplayItem]),
+    TypeOrmModule.forFeature([Tenant, AppEntity, Endpoint, WebhookEvent, DeliveryLog, DeadLetter, Alert, AlertRule, Metric, ReplayTask, ReplayItem, NotificationRule, NotificationHistory]),
     RedisModule,
     AuthModule,
     AppsModule,

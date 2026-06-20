@@ -298,7 +298,7 @@ export class DeliveryEngineService implements OnModuleInit {
       }
     }
 
-    this.pushDeliveryNotification(task.tenantId, event, endpoint, result);
+    await this.pushDeliveryNotification(task.tenantId, task.endpointId, event, endpoint, result);
   }
 
   private async scheduleRetry(task: DeliveryTask, retryAt: number): Promise<void> {
@@ -307,12 +307,13 @@ export class DeliveryEngineService implements OnModuleInit {
     await this.redisService.zadd(retryKey, retryAt, JSON.stringify(task));
   }
 
-  private pushDeliveryNotification(
+  private async pushDeliveryNotification(
     tenantId: string,
+    endpointId: string,
     event: WebhookEvent,
     endpoint: Endpoint,
     result: { success: boolean; responseStatus?: number; durationMs: number; errorMessage?: string },
-  ): void {
+  ): Promise<void> {
     let notificationStatus: 'success' | 'failed' | 'timeout' = result.success ? 'success' : 'failed';
     if (!result.success && result.errorMessage?.toLowerCase().includes('timed out')) {
       notificationStatus = 'timeout';
@@ -327,7 +328,7 @@ export class DeliveryEngineService implements OnModuleInit {
       timestamp: new Date().toISOString(),
     };
 
-    this.notificationService.sendDeliveryNotification(tenantId, notification);
+    await this.notificationService.sendDeliveryNotification(tenantId, notification, endpointId);
   }
 
   @Cron('*/10 * * * * *')
