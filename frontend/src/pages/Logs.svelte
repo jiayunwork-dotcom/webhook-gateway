@@ -80,22 +80,8 @@
     return items.length > 0 && items.every(i => selectedIds.has(i.id));
   }
 
-  function handleRowClick(e: MouseEvent, log: any) {
-    const target = e.target as HTMLElement;
-    if (target.tagName === 'INPUT' || target.closest('input')) {
-      return;
-    }
+  function viewDetail(log: any) {
     selectedLog = log;
-  }
-
-  function handleCheckboxChange(e: Event, id: string) {
-    e.stopPropagation();
-    toggleSelect(id);
-  }
-
-  function handleSelectAll(e: Event) {
-    e.stopPropagation();
-    toggleSelectAll();
   }
 
   function openCreateReplayModal() {
@@ -108,7 +94,7 @@
       uiStore.info('请至少选择一条失败或超时的记录');
       return;
     }
-    replayTaskName = `回放任务-${new Date().toLocaleString('zh-CN')}`;
+    replayTaskName = '回放任务-' + new Date().toLocaleString('zh-CN');
     showCreateReplayModal = true;
   }
 
@@ -128,13 +114,42 @@
         name: replayTaskName.trim(),
         logIds: ids,
       });
-      uiStore.success(`回放任务创建成功：${task.name}`);
+      uiStore.success('回放任务创建成功：' + task.name);
       showCreateReplayModal = false;
       selectedIds.clear();
       selectedIds = selectedIds;
-      navigate(`/replays/${task.id}`);
+      navigate('/replays/' + task.id);
     } catch (e: any) { uiStore.error(e.message); }
     finally { createReplayLoading = false; }
+  }
+
+  function closeSelectedLog() {
+    selectedLog = null;
+  }
+
+  function closeSelectedLogBackdrop() {
+    selectedLog = null;
+  }
+
+  function addSelectedLogToReplay() {
+    if (selectedLog) {
+      selectedIds.add(selectedLog.id);
+      selectedIds = selectedIds;
+      selectedLog = null;
+      openCreateReplayModal();
+    }
+  }
+
+  function closeCreateReplayModal() {
+    if (!createReplayLoading) {
+      showCreateReplayModal = false;
+    }
+  }
+
+  function closeCreateReplayModalBackdrop() {
+    if (!createReplayLoading) {
+      showCreateReplayModal = false;
+    }
   }
 </script>
 
@@ -161,7 +176,7 @@
     </select>
     <button class="btn btn-secondary" on:click="{loadData}">🔄 刷新</button>
     <button class="btn btn-primary" on:click="{openCreateReplayModal}" disabled="{selectedIds.size === 0}">
-      🔁 创建回放任务 {selectedIds.size > 0 ? `(${selectedIds.size})` : ''}
+      🔁 创建回放任务 {selectedIds.size > 0 ? '(' + selectedIds.size + ')' : ''}
     </button>
   </div>
 </div>
@@ -176,7 +191,7 @@
           <thead>
             <tr>
               <th style="width: 40px;">
-                <input type="checkbox" checked={allSelected()} on:change="{handleSelectAll}" />
+                <input type="checkbox" checked={allSelected()} on:change="{toggleSelectAll}" />
               </th>
               <th>时间</th>
               <th>端点</th>
@@ -190,9 +205,9 @@
           </thead>
           <tbody>
             {#each items as log (log.id)}
-              <tr class="cursor-pointer" on:click="{e => handleRowClick(e, log)}">
+              <tr class="cursor-pointer" on:click="{e => { if (!(e.target as HTMLElement).closest('input')) viewDetail(log); }}">
                 <td>
-                  <input type="checkbox" checked={selectedIds.has(log.id)} on:change="{e => handleCheckboxChange(e, log.id)} />
+                  <input type="checkbox" checked={selectedIds.has(log.id)} on:change="{() => toggleSelect(log.id)}" />
                 </td>
                 <td style="white-space: nowrap;" class="text-sm">{formatDate(log.createdAt)}</td>
                 <td class="font-medium">{endpoints.find(e => e.id === log.endpointId)?.name || log.endpointId.slice(0, 8)}</td>
@@ -232,11 +247,11 @@
 </div>
 
 {#if selectedLog}
-  <div class="modal-backdrop" on:click="{e => { if (e.target === e.currentTarget) selectedLog = null }}">
+  <div class="modal-backdrop" on:click="{closeSelectedLogBackdrop}">
     <div class="modal" style="max-width: 780px;">
       <div class="modal-header">
         <h3 class="mb-0">投递详情</h3>
-        <button class="icon-btn" on:click="{() => selectedLog = null}">✕</button>
+        <button class="icon-btn" on:click="{closeSelectedLog}">✕</button>
       </div>
       <div class="modal-body" style="max-height: 70vh; overflow: auto;">
         <div class="grid-2 mb-4">
@@ -259,27 +274,19 @@
         <div class="mb-3"><div class="text-sm text-muted mb-1">响应体</div><div class="code-block" style="max-height: 200px;">{selectedLog.responseBody || '-'}</div></div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-secondary" on:click="{() => selectedLog = null}">关闭</button>
-        <button
-          class="btn btn-primary"
-          on:click="{() => {
-            selectedIds.add(selectedLog.id);
-            selectedIds = selectedIds;
-            selectedLog = null;
-            openCreateReplayModal();
-          }}"
-        >加入回放任务</button>
+        <button class="btn btn-secondary" on:click="{closeSelectedLog}">关闭</button>
+        <button class="btn btn-primary" on:click="{addSelectedLogToReplay}">加入回放任务</button>
       </div>
     </div>
   </div>
 {/if}
 
 {#if showCreateReplayModal}
-  <div class="modal-backdrop" on:click="{e => { if (e.target === e.currentTarget && !createReplayLoading) showCreateReplayModal = false }}">
+  <div class="modal-backdrop" on:click="{closeCreateReplayModalBackdrop}">
     <div class="modal" style="max-width: 520px;">
       <div class="modal-header">
         <h3 class="mb-0">创建回放任务</h3>
-        <button class="icon-btn" on:click="{() => { if (!createReplayLoading) showCreateReplayModal = false; }}">✕</button>
+        <button class="icon-btn" on:click="{closeCreateReplayModal}">✕</button>
       </div>
       <div class="modal-body">
         <div style="padding: 0.875rem; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; margin-bottom: 1.25rem; font-size: 0.875rem; color: #1e40af;">
@@ -305,7 +312,7 @@
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-secondary" on:click="{() => showCreateReplayModal = false}" disabled="{createReplayLoading}">取消</button>
+        <button class="btn btn-secondary" on:click="{closeCreateReplayModal}" disabled="{createReplayLoading}">取消</button>
         <button class="btn btn-primary" on:click="{createReplayTask}" disabled="{createReplayLoading}">
           {createReplayLoading ? '创建中...' : '确认创建'}
         </button>
