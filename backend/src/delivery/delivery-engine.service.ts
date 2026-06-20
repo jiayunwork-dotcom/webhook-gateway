@@ -17,6 +17,8 @@ import { SignatureService } from '../signature/signature.service';
 import { EndpointService } from '../endpoints/endpoint.service';
 import { EventService } from '../events/event.service';
 import { MetricsService } from '../metrics/metrics.service';
+import { NotificationService } from '../notification/notification.service';
+import { DeliveryNotification } from '../notification/notification.gateway';
 
 export interface DeliveryTask {
   taskId: string;
@@ -61,6 +63,7 @@ export class DeliveryEngineService implements OnModuleInit {
     private readonly eventService: EventService,
     @Inject(forwardRef(() => MetricsService))
     private readonly metricsService: MetricsService,
+    private readonly notificationService: NotificationService,
     private readonly schedulerRegistry: SchedulerRegistry,
   ) {}
 
@@ -294,12 +297,37 @@ export class DeliveryEngineService implements OnModuleInit {
         await this.eventService.updateStatus(task.eventId, 'dead_letter', { failedAt: new Date() });
       }
     }
+
+    this.pushDeliveryNotification(task.tenantId, event, endpoint, result);
   }
 
   private async scheduleRetry(task: DeliveryTask, retryAt: number): Promise<void> {
     const retryKey = `retry:scheduled`;
     const member = `${retryAt}:${task.taskId}`;
     await this.redisService.zadd(retryKey, retryAt, JSON.stringify(task));
+  }
+
+  private pushDeliveryNotification(
+    tenantId: string,
+    event: WebhookEvent,
+    endpoint: Endpoint,
+    result: { success: boolean; responseStatus?: number; durationMs: number; errorMessage?: string },
+  ): void {
+    let notificationStatus: 'success' | 'failed' | 'timeout' = result.success ? 'success' : 'failed';
+    if (!result.success && result.errorMessage?.toLowerCase().includes('timed out')) {
+      notificationStatus = 'timeout';
+    }
+
+    const notification: DeliveryNotification = {
+      eventType: event.eventType,
+      endpointName: endpoint.name || endpoint.url,
+      status: notificationStatus,
+      responseStatus: result.responseStatus,
+      durationMs: result.durationMs,
+      timestamp: new Date().toISOString(),
+    };
+
+    this.notificationService.sendDeliveryNotification(tenantId, notification);
   }
 
   @Cron('*/10 * * * * *')

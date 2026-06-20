@@ -12,6 +12,7 @@ import { SignatureModule } from '../signature/signature.module';
 import { EndpointsModule } from '../endpoints/endpoint.module';
 import { EventsModule } from '../events/event.module';
 import { MetricsModule } from '../metrics/metrics.module';
+import { NotificationModule } from '../notification/notification.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { MetricsModule } from '../metrics/metrics.module';
     EndpointsModule,
     forwardRef(() => EventsModule),
     forwardRef(() => MetricsModule),
+    NotificationModule,
   ],
   providers: [DeliveryEngineService],
   exports: [DeliveryEngineService],

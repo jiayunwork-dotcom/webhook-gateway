@@ -20,8 +20,9 @@
     "vite": "^5.0.11"
   },
   "dependencies": {
-    "page": "^1.11.6",
     "chart.js": "^4.4.1",
+    "page": "^1.11.6",
+    "socket.io-client": "^4.8.3",
     "svelte-routing": "^2.10.0"
   }
 }

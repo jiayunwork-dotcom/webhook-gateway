@@ -27,6 +27,7 @@ import { MetricsModule } from './metrics/metrics.module';
 import { AlertsModule } from './alerts/alert.module';
 import { LogsModule } from './logs/logs.module';
 import { ReplayModule } from './replay/replay.module';
+import { NotificationModule } from './notification/notification.module';
 
 @Catch()
 class AllExceptionsFilter extends BaseExceptionFilter {
@@ -86,6 +87,7 @@ class AllExceptionsFilter extends BaseExceptionFilter {
     AlertsModule,
     LogsModule,
     ReplayModule,
+    NotificationModule,
   ],
   controllers: [AppController],
   providers: [
