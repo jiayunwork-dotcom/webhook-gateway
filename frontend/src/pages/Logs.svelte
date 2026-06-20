@@ -205,7 +205,7 @@
           </thead>
           <tbody>
             {#each items as log (log.id)}
-              <tr class="cursor-pointer" on:click="{e => { if (!(e.target as HTMLElement).closest('input')) viewDetail(log); }}">
+              <tr class="cursor-pointer" on:click="{e => { if (!e.target.closest('input')) viewDetail(log); }}">
                 <td>
                   <input type="checkbox" checked={selectedIds.has(log.id)} on:change="{() => toggleSelect(log.id)}" />
                 </td>
