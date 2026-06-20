@@ -143,7 +143,7 @@
           <thead>
             <tr>
               <th style="width: 40px;">
-                <input type="checkbox" checked="{allSelected()}" on:change="{toggleAll}" />
+                <input type="checkbox" checked={allSelected()} on:change="{toggleAll}" />
               </th>
               <th>时间</th>
               <th>端点</th>
@@ -156,7 +156,7 @@
           <tbody>
             {#each items as dl (dl.id)}
               <tr>
-                <td><input type="checkbox" checked="{selectedIds.has(dl.id)}" on:change="{() => toggle(dl.id)}" /></td>
+                <td><input type="checkbox" checked={selectedIds.has(dl.id)} on:change="{() => toggle(dl.id)}" /></td>
                 <td class="text-sm" style="white-space: nowrap;">{formatRelative(dl.createdAt)}</td>
                 <td class="font-medium cursor-pointer" on:click="{() => navigate(`/endpoints/${dl.endpointId}`)}">
                   {endpoints.find(e => e.id === dl.endpointId)?.name || dl.endpointId.slice(0, 8)}

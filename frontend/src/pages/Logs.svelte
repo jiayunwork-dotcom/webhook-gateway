@@ -158,7 +158,7 @@
           <thead>
             <tr>
               <th style="width: 40px;">
-                <input type="checkbox" checked="{allSelected()}" on:change="{toggleSelectAll}" />
+                <input type="checkbox" checked={allSelected()} on:change="{toggleSelectAll}" />
               </th>
               <th>时间</th>
               <th>端点</th>
@@ -172,9 +172,9 @@
           </thead>
           <tbody>
             {#each items as log (log.id)}
-              <tr class="cursor-pointer" on:click="{e => { if (!(e.target as HTMLElement).closest('input')) selectedLog = log; }}">
+              <tr class="cursor-pointer" on:click="{e => { if (!e.target.closest('input')) selectedLog = log; }}">
                 <td on:click|stopPropagation>
-                  <input type="checkbox" checked="{selectedIds.has(log.id)}" on:change="{() => toggleSelect(log.id)}" />
+                  <input type="checkbox" checked={selectedIds.has(log.id)} on:change="{() => toggleSelect(log.id)}" />
                 </td>
                 <td style="white-space: nowrap;" class="text-sm">{formatDate(log.createdAt)}</td>
                 <td class="font-medium">{endpoints.find(e => e.id === log.endpointId)?.name || log.endpointId.slice(0, 8)}</td>
