@@ -194,7 +194,7 @@ export const alertsApi = {
 };
 
 export const replaysApi = {
-  create: (data: { name: string; logIds: string[] }) =>
+  create: (data: { name: string; logIds: string[]; scheduledAt?: string }) =>
     ApiClient.post('/api/replays', data),
   list: (status?: string, limit = 100, offset = 0) => {
     let qs = `limit=${limit}&offset=${offset}`;
@@ -202,6 +202,7 @@ export const replaysApi = {
     return ApiClient.get(`/api/replays?${qs}`);
   },
   get: (id: string) => ApiClient.get(`/api/replays/${id}`),
+  getComparison: (id: string) => ApiClient.get(`/api/replays/${id}/comparison`),
   retryFailed: (id: string) =>
     ApiClient.post(`/api/replays/${id}/retry-failed`),
 };

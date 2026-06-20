@@ -11,7 +11,7 @@ import { DeliveryLog } from '../entities/delivery-log.entity';
 import { Endpoint } from '../entities/endpoint.entity';
 import { RedisService } from '../redis/redis.service';
 import { ConfigService } from '../config/config.module';
-import { IsArray, IsString, MaxLength } from 'class-validator';
+import { IsArray, IsString, MaxLength, IsOptional, IsDateString } from 'class-validator';
 
 export class CreateReplayTaskDto {
   @IsString()
@@ -21,6 +21,47 @@ export class CreateReplayTaskDto {
   @IsArray()
   @IsString({ each: true })
   logIds: string[];
+
+  @IsOptional()
+  @IsDateString()
+  scheduledAt?: string;
+}
+
+export interface ComparisonSummary {
+  originalSuccessRate: number;
+  replaySuccessRate: number;
+  originalAvgDurationMs: number;
+  replayAvgDurationMs: number;
+  originalStatusDistribution: Record<number, number>;
+  replayStatusDistribution: Record<number, number>;
+}
+
+export interface ComparisonItem {
+  replayItemId: string;
+  originalAvailable: boolean;
+  original?: {
+    responseStatus: number | null;
+    durationMs: number;
+    responseBody: string | null;
+  };
+  replay: {
+    responseStatus: number | null;
+    durationMs: number;
+    responseBody: string | null;
+  };
+  diff: {
+    statusChanged: boolean;
+    originalStatus: number | null;
+    replayStatus: number | null;
+    durationChangePercent: number | null;
+    durationFaster: boolean | null;
+    responseBodyDiff: string[] | null;
+  };
+}
+
+export interface ComparisonResult {
+  summary: ComparisonSummary;
+  items: ComparisonItem[];
 }
 
 const MAX_REPLAY_ITEMS = 200;
@@ -47,6 +88,7 @@ export class ReplayService implements OnModuleInit {
   onModuleInit() {
     this.logger.log('Replay service initialized');
     this.startReplayProcessor();
+    this.startScheduledTaskScanner();
   }
 
   private startReplayProcessor() {
@@ -56,6 +98,31 @@ export class ReplayService implements OnModuleInit {
       );
     }, 1000);
     this.schedulerRegistry.addInterval('replay-processor', interval);
+  }
+
+  private startScheduledTaskScanner() {
+    const interval = setInterval(() => {
+      this.scanScheduledTasks().catch(err =>
+        this.logger.error(`Scheduled task scanner error: ${err.message}`, err.stack),
+      );
+    }, 30000);
+    this.schedulerRegistry.addInterval('replay-scheduled-scanner', interval);
+  }
+
+  private async scanScheduledTasks(): Promise<void> {
+    const now = new Date();
+    const waitingTasks = await this.replayTaskRepository.find({
+      where: { status: 'waiting' as ReplayTaskStatus },
+    });
+
+    for (const task of waitingTasks) {
+      if (task.scheduledAt && task.scheduledAt <= now) {
+        this.logger.log(`Scheduled replay task ${task.id} reached scheduled time, changing to queued`);
+        task.status = 'queued';
+        task.scheduledAt = null;
+        await this.replayTaskRepository.save(task);
+      }
+    }
   }
 
   private rateLimitKey(endpointId: string, second: number): string {
@@ -68,6 +135,17 @@ export class ReplayService implements OnModuleInit {
     }
     if (dto.logIds.length > MAX_REPLAY_ITEMS) {
       throw new HttpException(`单次回放任务最多包含 ${MAX_REPLAY_ITEMS} 条事件`, HttpStatus.BAD_REQUEST);
+    }
+
+    let scheduledAt: Date | null = null;
+    if (dto.scheduledAt) {
+      scheduledAt = new Date(dto.scheduledAt);
+      if (isNaN(scheduledAt.getTime())) {
+        throw new HttpException('计划执行时间格式无效', HttpStatus.BAD_REQUEST);
+      }
+      if (scheduledAt <= new Date()) {
+        throw new HttpException('计划执行时间必须是未来时间', HttpStatus.BAD_REQUEST);
+      }
     }
 
     const logs = await this.deliveryLogRepository.find({
@@ -92,14 +170,17 @@ export class ReplayService implements OnModuleInit {
     });
     const endpointMap = new Map(endpoints.map(e => [e.id, e]));
 
+    const initialStatus = scheduledAt ? 'waiting' as ReplayTaskStatus : 'queued' as ReplayTaskStatus;
+
     const task = this.replayTaskRepository.create({
       tenantId,
       name: dto.name,
-      status: 'queued',
+      status: initialStatus,
       totalCount: logs.length,
       processedCount: 0,
       successCount: 0,
       failedCount: 0,
+      scheduledAt,
       items: logs.map(log => {
         const ep = endpointMap.get(log.endpointId);
         return this.replayItemRepository.create({
@@ -350,6 +431,7 @@ export class ReplayService implements OnModuleInit {
       item.responseStatus = result.responseStatus || null;
       item.durationMs = result.durationMs;
       item.errorMessage = result.errorMessage || null;
+      item.responseBody = result.responseBody || null;
       item.executedAt = new Date();
     } catch (err: any) {
       item.status = 'failed';
@@ -392,5 +474,127 @@ export class ReplayService implements OnModuleInit {
     }
     task.finishedAt = new Date();
     await this.replayTaskRepository.save(task);
+  }
+
+  async getComparison(tenantId: string, taskId: string): Promise<ComparisonResult | null> {
+    const task = await this.replayTaskRepository.findOne({
+      where: { id: taskId, tenantId },
+    });
+    if (!task) return null;
+
+    const items = await this.replayItemRepository.find({
+      where: { taskId },
+      order: { createdAt: 'ASC' },
+    });
+
+    const originalLogIds = items.map(i => i.originalLogId);
+    const originalLogs = await this.deliveryLogRepository.find({
+      where: { id: In(originalLogIds) },
+    });
+    const logMap = new Map(originalLogs.map(l => [l.id, l]));
+
+    const comparisonItems: ComparisonItem[] = [];
+    let originalTotalDuration = 0;
+    let originalSuccessCount = 0;
+    let originalCount = 0;
+    let replayTotalDuration = 0;
+    let replaySuccessCount = 0;
+    let replayCount = 0;
+    const originalStatusDist: Record<number, number> = {};
+    const replayStatusDist: Record<number, number> = {};
+
+    for (const item of items) {
+      const originalLog = logMap.get(item.originalLogId);
+      const originalAvailable = !!originalLog;
+
+      let durationChangePercent: number | null = null;
+      let durationFaster: boolean | null = null;
+      let responseBodyDiff: string[] | null = null;
+
+      if (originalAvailable) {
+        const origDur = originalLog.durationMs || 0;
+        if (origDur > 0) {
+          durationChangePercent = Math.round(((item.durationMs - origDur) / origDur) * 100);
+          durationFaster = item.durationMs < origDur;
+        }
+        responseBodyDiff = this.computeResponseBodyDiff(originalLog.responseBody, item.responseBody);
+
+        originalTotalDuration += origDur;
+        originalCount++;
+        if (originalLog.status === 'success') originalSuccessCount++;
+        if (originalLog.responseStatus) {
+          originalStatusDist[originalLog.responseStatus] = (originalStatusDist[originalLog.responseStatus] || 0) + 1;
+        }
+      }
+
+      replayTotalDuration += item.durationMs;
+      replayCount++;
+      if (item.status === 'success') replaySuccessCount++;
+      if (item.responseStatus) {
+        replayStatusDist[item.responseStatus] = (replayStatusDist[item.responseStatus] || 0) + 1;
+      }
+
+      comparisonItems.push({
+        replayItemId: item.id,
+        originalAvailable,
+        original: originalAvailable ? {
+          responseStatus: originalLog.responseStatus,
+          durationMs: originalLog.durationMs,
+          responseBody: originalLog.responseBody,
+        } : undefined,
+        replay: {
+          responseStatus: item.responseStatus,
+          durationMs: item.durationMs,
+          responseBody: item.responseBody,
+        },
+        diff: {
+          statusChanged: originalAvailable ? originalLog.responseStatus !== item.responseStatus : false,
+          originalStatus: originalAvailable ? originalLog.responseStatus : null,
+          replayStatus: item.responseStatus,
+          durationChangePercent,
+          durationFaster,
+          responseBodyDiff,
+        },
+      });
+    }
+
+    const summary: ComparisonSummary = {
+      originalSuccessRate: originalCount > 0 ? Math.round((originalSuccessCount / originalCount) * 100) : 0,
+      replaySuccessRate: replayCount > 0 ? Math.round((replaySuccessCount / replayCount) * 100) : 0,
+      originalAvgDurationMs: originalCount > 0 ? Math.round(originalTotalDuration / originalCount) : 0,
+      replayAvgDurationMs: replayCount > 0 ? Math.round(replayTotalDuration / replayCount) : 0,
+      originalStatusDistribution: originalStatusDist,
+      replayStatusDistribution: replayStatusDist,
+    };
+
+    return { summary, items: comparisonItems };
+  }
+
+  private computeResponseBodyDiff(original: string | null, replay: string | null): string[] | null {
+    if (!original && !replay) return null;
+    if (!original || !replay) {
+      if (!original) return ['+ 原始响应体为空，回放有响应体'];
+      return ['- 回放响应体为空，原始有响应体'];
+    }
+
+    const origLines = original.split('\n');
+    const replayLines = replay.split('\n');
+    const maxLines = Math.max(origLines.length, replayLines.length);
+    const diffLines: string[] = [];
+
+    for (let i = 0; i < maxLines; i++) {
+      const origLine = origLines[i];
+      const replayLine = replayLines[i];
+      if (origLine !== replayLine) {
+        if (origLine !== undefined) diffLines.push(`- ${i + 1}: ${origLine.slice(0, 200)}`);
+        if (replayLine !== undefined) diffLines.push(`+ ${i + 1}: ${replayLine.slice(0, 200)}`);
+        if (diffLines.length >= 50) {
+          diffLines.push(`... (省略更多差异行)`);
+          break;
+        }
+      }
+    }
+
+    return diffLines.length > 0 ? diffLines : null;
   }
 }

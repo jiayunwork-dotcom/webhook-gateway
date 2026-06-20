@@ -9,10 +9,13 @@
   let loading = true;
   let filterStatus = '';
   let pollTimer: any = null;
+  let countdownTimer: any = null;
   let lastFilterStatus = '';
+  let nowTimestamp = Date.now();
 
   const statusOptions = [
     { value: '', label: '全部状态' },
+    { value: 'waiting', label: '等待中' },
     { value: 'queued', label: '排队中' },
     { value: 'running', label: '执行中' },
     { value: 'completed', label: '已完成' },
@@ -30,7 +33,7 @@
   }
 
   function hasActiveTasks(): boolean {
-    return items.some(t => t.status === 'queued' || t.status === 'running');
+    return items.some(t => t.status === 'queued' || t.status === 'running' || t.status === 'waiting');
   }
 
   function updatePolling() {
@@ -43,6 +46,37 @@
       clearInterval(pollTimer);
       pollTimer = null;
     }
+  }
+
+  function startCountdownTimer() {
+    countdownTimer = setInterval(() => {
+      nowTimestamp = Date.now();
+    }, 1000);
+  }
+
+  function stopCountdownTimer() {
+    if (countdownTimer) {
+      clearInterval(countdownTimer);
+      countdownTimer = null;
+    }
+  }
+
+  function formatCountdown(scheduledAt: string | null | undefined): string {
+    if (!scheduledAt) return '';
+    const target = new Date(scheduledAt).getTime();
+    const diff = target - nowTimestamp;
+    if (diff <= 0) return '即将开始...';
+    const totalSeconds = Math.floor(diff / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    if (hours > 0) {
+      return `还有 ${hours} 小时 ${minutes} 分钟`;
+    }
+    const seconds = totalSeconds % 60;
+    if (minutes > 0) {
+      return `还有 ${minutes} 分 ${seconds} 秒`;
+    }
+    return `还有 ${seconds} 秒`;
   }
 
   function onFilterChange() {
@@ -67,6 +101,7 @@
   onMount(() => {
     lastFilterStatus = filterStatus;
     loadData();
+    startCountdownTimer();
   });
 
   onDestroy(() => {
@@ -74,6 +109,7 @@
       clearInterval(pollTimer);
       pollTimer = null;
     }
+    stopCountdownTimer();
   });
 
   function progressPercent(task: any): number {
@@ -108,6 +144,7 @@
             <tr>
               <th>任务名称</th>
               <th>创建时间</th>
+              <th>计划执行时间</th>
               <th>事件条数</th>
               <th>进度</th>
               <th>状态</th>
@@ -119,18 +156,36 @@
               <tr class="cursor-pointer" on:click="{() => navigate('/replays/' + task.id)}">
                 <td class="font-medium">{task.name}</td>
                 <td style="white-space: nowrap;" class="text-sm">{formatDate(task.createdAt)}</td>
+                <td style="white-space: nowrap;" class="text-sm">
+                  {#if task.scheduledAt && task.status === 'waiting'}
+                    <span style="color: var(--color-primary); font-weight: 500;">
+                      {formatDate(task.scheduledAt)}
+                    </span>
+                    <div class="text-xs" style="color: #6b21a8; margin-top: 2px;">
+                      ⏰ {formatCountdown(task.scheduledAt)}
+                    </div>
+                  {:else if task.scheduledAt}
+                    {formatDate(task.scheduledAt)}
+                  {:else}
+                    <span class="text-muted">立即执行</span>
+                  {/if}
+                </td>
                 <td>{task.totalCount} 条</td>
                 <td style="min-width: 220px;">
                   <div style="display: flex; align-items: center; gap: 10px;">
-                    <div class="progress-bar-wrap">
-                      <div
-                        class="progress-bar {task.status === 'running' || task.status === 'queued' ? 'progress-animated' : ''}"
-                        style="width: {progressPercent(task)}%;"
-                      ></div>
-                    </div>
-                    <span class="text-sm text-muted" style="min-width: 60px;">
-                      {task.processedCount}/{task.totalCount}
-                    </span>
+                    {#if task.status === 'waiting'}
+                      <span class="text-sm text-muted">等待执行</span>
+                    {:else}
+                      <div class="progress-bar-wrap">
+                        <div
+                          class="progress-bar {task.status === 'running' || task.status === 'queued' ? 'progress-animated' : ''}"
+                          style="width: {progressPercent(task)}%;"
+                        ></div>
+                      </div>
+                      <span class="text-sm text-muted" style="min-width: 60px;">
+                        {task.processedCount}/{task.totalCount}
+                      </span>
+                    {/if}
                   </div>
                 </td>
                 <td>

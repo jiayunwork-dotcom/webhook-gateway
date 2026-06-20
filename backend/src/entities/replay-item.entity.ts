@@ -50,6 +50,9 @@ export class ReplayItem {
   @Column({ type: 'text', nullable: true })
   errorMessage: string | null;
 
+  @Column({ type: 'text', nullable: true })
+  responseBody: string | null;
+
   @Column({ type: 'timestamptz', nullable: true })
   executedAt: Date | null;
 

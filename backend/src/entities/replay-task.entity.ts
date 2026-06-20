@@ -1,7 +1,7 @@
 import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, Index, OneToMany } from 'typeorm';
 import { ReplayItem } from './replay-item.entity';
 
-export type ReplayTaskStatus = 'queued' | 'running' | 'completed' | 'partially_failed' | 'failed';
+export type ReplayTaskStatus = 'waiting' | 'queued' | 'running' | 'completed' | 'partially_failed' | 'failed';
 
 @Entity('replay_tasks')
 @Index(['tenantId', 'createdAt'])
@@ -39,6 +39,9 @@ export class ReplayTask {
 
   @Column({ type: 'timestamptz', nullable: true })
   finishedAt: Date | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  scheduledAt: Date | null;
 
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;

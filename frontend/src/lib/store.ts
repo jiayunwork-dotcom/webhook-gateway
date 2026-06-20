@@ -191,6 +191,8 @@ export function statusColor(status: string): string {
     case 'running':
     case 'rate_limited':
       return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+    case 'waiting':
+      return 'bg-purple-100 text-purple-800 border-purple-200';
     case 'active':
     case 'info':
       return 'bg-blue-100 text-blue-800 border-blue-200';
@@ -219,6 +221,7 @@ export function statusText(status: string): string {
     active: '活跃',
     acknowledged: '已确认',
     resolved: '已解决',
+    waiting: '等待中',
     queued: '排队中',
     running: '执行中',
     completed: '已完成',

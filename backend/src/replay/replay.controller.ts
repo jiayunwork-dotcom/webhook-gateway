@@ -39,6 +39,12 @@ export class ReplayController {
     return this.replayService.getTaskDetail(req.user.tenantId, id);
   }
 
+  @Get(':id/comparison')
+  @ApiOperation({ summary: '获取回放任务与原始投递的对比数据' })
+  async getComparison(@Request() req: any, @Param('id') id: string) {
+    return this.replayService.getComparison(req.user.tenantId, id);
+  }
+
   @Post(':id/retry-failed')
   @ApiOperation({ summary: '重试任务中的失败项' })
   async retryFailed(@Request() req: any, @Param('id') id: string) {

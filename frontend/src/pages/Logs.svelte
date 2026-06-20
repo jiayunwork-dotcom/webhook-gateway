@@ -19,6 +19,9 @@
   let showCreateReplayModal = false;
   let replayTaskName = '';
   let createReplayLoading = false;
+  let scheduledEnabled = false;
+  let scheduledDate = '';
+  let scheduledTime = '';
 
   const statusOptions = [
     { value: '', label: '全部状态' },
@@ -95,6 +98,11 @@
       return;
     }
     replayTaskName = '回放任务-' + new Date().toLocaleString('zh-CN');
+    scheduledEnabled = false;
+    const now = new Date();
+    now.setMinutes(now.getMinutes() + 30);
+    scheduledDate = now.toISOString().slice(0, 10);
+    scheduledTime = now.toTimeString().slice(0, 5);
     showCreateReplayModal = true;
   }
 
@@ -108,11 +116,31 @@
       uiStore.error('单次回放任务最多包含 200 条事件');
       return;
     }
+
+    let scheduledAt: string | undefined;
+    if (scheduledEnabled) {
+      if (!scheduledDate || !scheduledTime) {
+        uiStore.error('请选择计划执行时间');
+        return;
+      }
+      const scheduledDt = new Date(`${scheduledDate}T${scheduledTime}`);
+      if (isNaN(scheduledDt.getTime())) {
+        uiStore.error('计划执行时间格式无效');
+        return;
+      }
+      if (scheduledDt <= new Date()) {
+        uiStore.error('计划执行时间必须是未来时间');
+        return;
+      }
+      scheduledAt = scheduledDt.toISOString();
+    }
+
     createReplayLoading = true;
     try {
       const task = await replaysApi.create({
         name: replayTaskName.trim(),
         logIds: ids,
+        scheduledAt,
       });
       uiStore.success('回放任务创建成功：' + task.name);
       showCreateReplayModal = false;
@@ -305,6 +333,36 @@
           />
           <div class="form-hint">{replayTaskName.length}/200</div>
         </div>
+        <div class="mb-4">
+          <label class="toggle-switch" style="display: flex; align-items: center; gap: 0.75rem;">
+            <input type="checkbox" bind:checked="{scheduledEnabled}" disabled="{createReplayLoading}" />
+            <span class="toggle-slider"></span>
+            <span class="font-medium">定时回放</span>
+          </label>
+          <div class="form-hint" style="margin-left: 44px;">打开后可设置未来某个时刻自动执行回放</div>
+        </div>
+        {#if scheduledEnabled}
+          <div class="mb-4" style="padding: 0.875rem; background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 6px;">
+            <div class="text-sm font-medium mb-2" style="color: #6b21a8;">计划执行时间</div>
+            <div style="display: flex; gap: 0.75rem;">
+              <input
+                class="form-input"
+                type="date"
+                bind:value="{scheduledDate}"
+                disabled="{createReplayLoading}"
+                style="flex: 1;"
+              />
+              <input
+                class="form-input"
+                type="time"
+                bind:value="{scheduledTime}"
+                step="60"
+                disabled="{createReplayLoading}"
+                style="width: 140px;"
+              />
+            </div>
+          </div>
+        {/if}
         <div class="text-sm text-muted">
           <p style="margin: 0;">• 回放请求会在原始请求头基础上添加 <code>X-Webhook-Replay: true</code> 标记</p>
           <p style="margin: 0.375rem 0 0;">• 回放投递不计入端点的正式统计和告警计算</p>
