@@ -15,7 +15,7 @@ import { ConfigModule } from '../config/config.module';
     TypeOrmModule.forFeature([ReplayTask, ReplayItem, DeliveryLog, Endpoint]),
     RedisModule,
     ConfigModule,
-    ScheduleModule,
+    ScheduleModule.forRoot(),
   ],
   controllers: [ReplayController],
   providers: [ReplayService],

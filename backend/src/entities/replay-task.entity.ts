@@ -1,4 +1,4 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, Index, OneToMany, JoinColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, Index, OneToMany } from 'typeorm';
 import { ReplayItem } from './replay-item.entity';
 
 export type ReplayTaskStatus = 'queued' | 'running' | 'completed' | 'partially_failed' | 'failed';
@@ -32,7 +32,6 @@ export class ReplayTask {
   failedCount: number;
 
   @OneToMany(() => ReplayItem, item => item.task, { cascade: true })
-  @JoinColumn()
   items: ReplayItem[];
 
   @Column({ type: 'timestamptz', nullable: true })
